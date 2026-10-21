@@ -1,0 +1,166 @@
+name: Build PHP 8.1.34-cve2026
+run-name: Build PHP 8.1.34-cve2026 (release=${{ inputs.release }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a GitHub release with the binaries
+        type: boolean
+        default: false
+
+env:
+  # Branch PHP-8.1-CVE-2026-109618-109619, commit "Avoid state corruption via bailout"
+  PHP_SRC_SHA: 1d7dec178a094e6e75b229ce22754045f8c6070a
+  # Official Windows builder (php/php-windows-builder), pinned
+  BUILDER_SHA: 5f63433eb2bda2ca8d0d970fe487be84f7ab195c
+  BASE_VERSION: 8.1.34
+  VERSION_SUFFIX: -cve2026
+  PHP_BUILD_PROVIDER: "Jamal TANTAOUI (unofficial build, php-src@1d7dec1) - https://github.com/Jamalofski/php-8.1-cve-builds"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }} ${{ matrix.ts }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
+        ts: [nts, ts]
+    # Same runner image as the official 8.1 builds (VS 2022 + v142 toolset = vs16)
+    runs-on: windows-2022
+    env:
+      # configure.bat resolves the Oracle SDK as ..\..\..\..\instantclient from the
+      # source directory, so the sources sit four levels below the workspace.
+      SRC_DIR: build/${{ matrix.arch }}/${{ matrix.ts }}/php-src
+    steps:
+      - name: git config
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout php-windows-builder
+        uses: actions/checkout@v6
+        with:
+          repository: php/php-windows-builder
+          ref: ${{ env.BUILDER_SHA }}
+          path: builder
+
+      - name: Checkout php-src
+        uses: actions/checkout@v6
+        with:
+          repository: php/php-src
+          ref: ${{ env.PHP_SRC_SHA }}
+          path: ${{ env.SRC_DIR }}
+
+      - name: Oracle Instant Client SDK
+        shell: pwsh
+        run: |
+          $suffix = if ('${{ matrix.arch }}' -eq 'x86') { 'nt' } else { 'windows' }
+          Invoke-WebRequest "https://download.oracle.com/otn_software/nt/instantclient/instantclient-sdk-$suffix.zip" -OutFile instantclient-sdk.zip
+          Expand-Archive instantclient-sdk.zip -DestinationPath .
+          Move-Item instantclient_* instantclient
+
+      - name: Set version suffix
+        shell: pwsh
+        working-directory: ${{ env.SRC_DIR }}
+        run: |
+          $version = "$env:BASE_VERSION$env:VERSION_SUFFIX"
+          $patches = @(
+            @{ File = 'configure.ac'; From = "AC_INIT([PHP],[$env:BASE_VERSION]"; To = "AC_INIT([PHP],[$version]" },
+            @{ File = 'main/php_version.h'; From = '#define PHP_EXTRA_VERSION ""'; To = "#define PHP_EXTRA_VERSION `"$env:VERSION_SUFFIX`"" },
+            @{ File = 'main/php_version.h'; From = "#define PHP_VERSION `"$env:BASE_VERSION`""; To = "#define PHP_VERSION `"$version`"" }
+          )
+          foreach ($p in $patches) {
+            $content = Get-Content $p.File -Raw
+            if (-not $content.Contains($p.From)) { throw "$($p.File): '$($p.From)' not found" }
+            Set-Content $p.File $content.Replace($p.From, $p.To) -NoNewline
+          }
+          git diff
+
+      - name: Build
+        shell: pwsh
+        working-directory: ${{ env.SRC_DIR }}
+        env:
+          SBOM: 'false'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          Import-Module "$env:GITHUB_WORKSPACE\builder\php\BuildPhp" -Force
+          Invoke-PhpBuild -Arch ${{ matrix.arch }} -Ts ${{ matrix.ts }}
+
+      - name: Smoke test
+        shell: pwsh
+        working-directory: ${{ env.SRC_DIR }}/artifacts
+        run: |
+          Get-ChildItem | Format-Table Name, Length
+          $zip = Get-ChildItem "php-$env:BASE_VERSION*.zip" | Select-Object -First 1
+          if (-not $zip) { throw 'binary zip not found' }
+          $dir = Join-Path $env:RUNNER_TEMP php
+          Expand-Archive $zip.FullName -DestinationPath $dir
+          $php = Join-Path $dir php.exe
+
+          $info = & $php -n -i | Out-String
+          $expected = @{
+            'PHP Version' = "$env:BASE_VERSION$env:VERSION_SUFFIX"
+            'Build Provider' = $env:PHP_BUILD_PROVIDER
+            'Compiler' = 'Visual C++ 2019'
+            'Thread Safety' = $(if ('${{ matrix.ts }}' -eq 'ts') { 'enabled' } else { 'disabled' })
+          }
+          foreach ($key in $expected.Keys) {
+            $line = ($info -split "`r?`n" | Where-Object { $_ -like "$key =>*" } | Select-Object -First 1)
+            Write-Host $line
+            if (-not $line -or -not $line.Contains($expected[$key])) { throw "$key mismatch, expected '$($expected[$key])'" }
+          }
+
+          $ext = Join-Path $dir ext
+          & $php -n -d zend_extension="$ext\php_opcache.dll" -d opcache.enable_cli=1 -r "exit(opcache_get_status() === false ? 1 : 0);"
+          if ($LASTEXITCODE -ne 0) { throw 'opcache failed to load' }
+          foreach ($name in 'openssl', 'curl', 'mbstring', 'intl', 'sodium', 'gd', 'zip', 'fileinfo', 'pdo_mysql', 'pdo_sqlite', 'sqlite3', 'pgsql') {
+            $out = & $php -n -d extension_dir="$ext" -d extension=$name -r "echo extension_loaded('$name') ? 'ok' : 'KO';" 2>&1 | Out-String
+            Write-Host "$name : $out"
+            if ($out.Trim() -ne 'ok') { throw "extension $name failed to load" }
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: php-${{ matrix.arch }}-${{ matrix.ts }}
+          path: ${{ env.SRC_DIR }}/artifacts/*
+
+  package:
+    name: Checksums and release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum *.zip | tee SHA256SUMS
+          cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v7
+        with:
+          name: SHA256SUMS
+          path: dist/SHA256SUMS
+
+      - name: Release
+        if: inputs.release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="php-${BASE_VERSION}${VERSION_SUFFIX}"
+          gh release create "$TAG" dist/*.zip dist/SHA256SUMS \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "PHP ${BASE_VERSION}${VERSION_SUFFIX} (unofficial Windows build)" \
+            --notes "Unofficial Windows binaries of php-src@${PHP_SRC_SHA} (PHP ${BASE_VERSION} + fix for CVE-2026-109618 and CVE-2026-109619). Built by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. See README for details."
