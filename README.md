@@ -52,7 +52,13 @@ php -v                                # PHP 8.1.34-pl1 ...
 php -i | findstr "Build Provider"     # Jamal TANTAOUI (unofficial EOL security build) ... (8.0+)
 ```
 
-Check the zips against `SHA256SUMS` attached to the release.
+Check the zips against `SHA256SUMS` attached to the release. Each zip also has a
+signed build provenance attestation, which ties it to the workflow run and the
+commit that built it:
+
+```
+gh attestation verify php-8.1.34-pl1-nts-Win32-vs16-x64.zip --repo Jamalofski/php-eol-security
+```
 
 ## Upstream watch
 

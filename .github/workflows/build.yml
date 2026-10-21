@@ -230,6 +230,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     env:
       PHP_SRC_REPO: ${{ needs.config.outputs.php_src_repo }}
       PHP_SRC_SHA: ${{ needs.config.outputs.php_src_sha }}
@@ -254,6 +256,13 @@ jobs:
           name: SHA256SUMS-${{ needs.config.outputs.base_version }}
           path: dist/SHA256SUMS
 
+      # Signed build provenance for each zip, linking it to this workflow run and commit
+      - name: Attest
+        if: inputs.release
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.zip
+
       - name: Release
         if: inputs.release
         env:
@@ -263,6 +272,7 @@ jobs:
           VERSION="${BASE_VERSION}${VERSION_SUFFIX}"
           LEVEL="${VERSION_SUFFIX#-pl}"
           REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          SAMPLE_ZIP=$(cd dist && ls php-${VERSION}-nts-Win32-*-x64.zip)
           cat > notes.md <<EOF
           Unofficial Windows build of PHP ${BASE_VERSION} with security fixes. **Not an official PHP Group release.**
 
@@ -271,6 +281,7 @@ jobs:
           - Fixes included: [PATCHES.md](${REPO_URL}/blob/${GITHUB_SHA}/PATCHES.md)
           - Built and tested by [run ${GITHUB_RUN_ID}](${REPO_URL}/actions/runs/${GITHUB_RUN_ID}) (GitHub keeps run logs for 90 days)
           - Checksums: \`SHA256SUMS\`
+          - Provenance: \`gh attestation verify ${SAMPLE_ZIP} --repo ${GITHUB_REPOSITORY}\`
           EOF
           cat notes.md
           gh release create "php-${VERSION}" dist/*.zip dist/SHA256SUMS \
