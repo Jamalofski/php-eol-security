@@ -1,5 +1,5 @@
-name: Build PHP 8.1.34-cve2026
-run-name: Build PHP 8.1.34-cve2026 (release=${{ inputs.release }})
+name: Build PHP 8.1.34-pl1
+run-name: Build PHP 8.1.34-pl1 (release=${{ inputs.release }})
 
 on:
   workflow_dispatch:
@@ -10,13 +10,16 @@ on:
         default: false
 
 env:
-  # Branch PHP-8.1-CVE-2026-109618-109619, commit "Avoid state corruption via bailout"
+  # Sources of this patch level, see PATCHES.md.
+  # pl1 = branch PHP-8.1-CVE-2026-109618-109619, commit "Avoid state corruption via bailout"
+  PHP_SRC_REPO: php/php-src
   PHP_SRC_SHA: 1d7dec178a094e6e75b229ce22754045f8c6070a
   # Official Windows builder (php/php-windows-builder), pinned
   BUILDER_SHA: 5f63433eb2bda2ca8d0d970fe487be84f7ab195c
   BASE_VERSION: 8.1.34
-  VERSION_SUFFIX: -cve2026
-  PHP_BUILD_PROVIDER: "Jamal TANTAOUI (unofficial build, php-src@1d7dec1) - https://github.com/Jamalofski/php-8.1-cve-builds"
+  # "pl" (patch level) sorts after the base version for version_compare() and Composer
+  VERSION_SUFFIX: -pl1
+  PHP_BUILD_PROVIDER: "Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security"
 
 permissions:
   contents: read
@@ -51,7 +54,7 @@ jobs:
       - name: Checkout php-src
         uses: actions/checkout@v6
         with:
-          repository: php/php-src
+          repository: ${{ env.PHP_SRC_REPO }}
           ref: ${{ env.PHP_SRC_SHA }}
           path: ${{ env.SRC_DIR }}
 
@@ -162,5 +165,5 @@ jobs:
           TAG="php-${BASE_VERSION}${VERSION_SUFFIX}"
           gh release create "$TAG" dist/*.zip dist/SHA256SUMS \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "PHP ${BASE_VERSION}${VERSION_SUFFIX} (unofficial Windows build)" \
-            --notes "Unofficial Windows binaries of php-src@${PHP_SRC_SHA} (PHP ${BASE_VERSION} + fix for CVE-2026-109618 and CVE-2026-109619). Built by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. See README for details."
+            --title "PHP ${BASE_VERSION}${VERSION_SUFFIX} (unofficial EOL security build)" \
+            --notes "Unofficial Windows binaries of ${PHP_SRC_REPO}@${PHP_SRC_SHA}. Fixes included: see PATCHES.md, section ${BASE_VERSION}${VERSION_SUFFIX}. Built by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
