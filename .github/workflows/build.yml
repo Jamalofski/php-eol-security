@@ -69,8 +69,9 @@ jobs:
       PHP_SRC_SHA: ${{ needs.config.outputs.php_src_sha }}
       BASE_VERSION: ${{ needs.config.outputs.base_version }}
       VERSION_SUFFIX: ${{ needs.config.outputs.version_suffix }}
-      # configure.bat resolves the Oracle SDK as ..\..\..\..\instantclient from the
-      # source directory, so the sources sit four levels below the workspace.
+      # For OCI8 (8.0 and later), configure.bat resolves the Oracle SDK as
+      # ..\..\..\..\instantclient from the source directory, so the sources sit
+      # four levels below the workspace.
       SRC_DIR: build/${{ matrix.arch }}/${{ matrix.ts }}/php-src
     steps:
       - name: git config

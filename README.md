@@ -18,7 +18,8 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
 - Release tags are `php-<version>`; zips keep the official naming
   (`php-8.1.34-pl1-Win32-vs16-x64.zip`, `php-8.1.34-pl1-nts-Win32-vs16-x64.zip`…).
 
-Current, each fixing CVE-2026-109618 and CVE-2026-109619:
+Patch levels, each fixing CVE-2026-109618 and CVE-2026-109619. Binaries are
+attached to the [releases](https://github.com/Jamalofski/php-eol-security/releases).
 
 | Branch | Version | Toolchain |
 |---|---|---|
@@ -30,7 +31,7 @@ Current, each fixing CVE-2026-109618 and CVE-2026-109619:
 
 | | |
 |---|---|
-| Sources | pinned php-src commit per branch in [versions.json](versions.json), see [PATCHES.md](PATCHES.md); only change made here is the version string |
+| Sources | the last official release of the branch plus the fixes listed in [PATCHES.md](PATCHES.md), pinned per branch in [versions.json](versions.json); the only change made here is the version string |
 | Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7.4 has no such entry) |
 | Toolchain | the one of the official builds of the branch (table above), on `windows-2022` |
 | Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as official builds |
@@ -40,8 +41,8 @@ Current, each fixing CVE-2026-109618 and CVE-2026-109619:
 ABI and CRT are those of the official builds of the branch: existing extension
 DLLs load as before.
 
-Everything is in [`.github/workflows/build.yml`](.github/workflows/build.yml); each
-release links the run that produced it, with its full logs.
+Everything is in [`.github/workflows/build.yml`](.github/workflows/build.yml). Each
+release links the run that produced it; GitHub keeps run logs for 90 days.
 
 ## Verify
 
@@ -57,4 +58,11 @@ Check the zips against `SHA256SUMS` attached to the release.
 - Only the fixes listed in [PATCHES.md](PATCHES.md). Bundled libraries stay at the
   versions of the branch (OpenSSL 1.1.1, itself end-of-life, among others).
 - Migrating to a supported PHP version remains the real fix.
-- Provided as is, without warranty. PHP is distributed under the PHP License.
+- Provided as is, without warranty.
+
+## License
+
+This product includes PHP software, freely available from
+<http://www.php.net/software/>. PHP is distributed under the PHP License,
+version 3.01. Each zip ships it as `license.txt`, with the licenses of the code PHP
+bundles in `readme-redist-bins.txt`, as the official zips do.
