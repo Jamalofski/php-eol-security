@@ -5,7 +5,8 @@
     "base_version": "8.1.34",
     "patch_level": 1,
     "compiler": "Visual C++ 2019",
-    "build_provider": true
+    "build_provider": true,
+    "extra_configure": []
   },
   "8.0": {
     "php_src_repo": "php/php-src",
@@ -13,7 +14,8 @@
     "base_version": "8.0.30",
     "patch_level": 1,
     "compiler": "Visual C++ 2019",
-    "build_provider": true
+    "build_provider": true,
+    "extra_configure": []
   },
   "7.4": {
     "php_src_repo": "php/php-src",
@@ -21,6 +23,10 @@
     "base_version": "7.4.33",
     "patch_level": 1,
     "compiler": "Visual C++ 2017",
-    "build_provider": false
+    "build_provider": false,
+    "extra_configure": [
+      "--with-pdo-oci=..\\..\\..\\..\\instantclient\\sdk,shared",
+      "--with-oci8-12c=..\\..\\..\\..\\instantclient\\sdk,shared"
+    ]
   }
 }

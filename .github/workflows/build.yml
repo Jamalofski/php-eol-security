@@ -32,6 +32,7 @@ jobs:
       version_suffix: ${{ steps.cfg.outputs.version_suffix }}
       compiler: ${{ steps.cfg.outputs.compiler }}
       build_provider: ${{ steps.cfg.outputs.build_provider }}
+      extra_configure: ${{ steps.cfg.outputs.extra_configure }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -51,6 +52,7 @@ jobs:
             echo "version_suffix=-pl$(jq -r .patch_level cfg.json)"
             echo "compiler=$(jq -r .compiler cfg.json)"
             echo "build_provider=$(jq -r .build_provider cfg.json)"
+            echo "extra_configure=$(jq -c '.extra_configure // []' cfg.json)"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -100,6 +102,22 @@ jobs:
           Invoke-WebRequest "https://download.oracle.com/otn_software/nt/instantclient/instantclient-sdk-$suffix.zip" -OutFile instantclient-sdk.zip
           Expand-Archive instantclient-sdk.zip -DestinationPath .
           Move-Item instantclient_* instantclient
+
+      - name: Extra configure options
+        if: needs.config.outputs.extra_configure != '[]'
+        shell: pwsh
+        env:
+          EXTRA_CONFIGURE: ${{ needs.config.outputs.extra_configure }}
+        run: |
+          # Options of the original releases of the branch that the builder's
+          # configuration lacks (OCI8 and PDO_OCI for 7.4)
+          $vs = (Get-Content builder/php/BuildPhp/config/vs.json -Raw | ConvertFrom-Json).php.'${{ inputs.branch }}'
+          $bat = "builder/php/BuildPhp/config/$vs/${{ matrix.arch }}/config.${{ matrix.ts }}.bat"
+          $content = Get-Content $bat -Raw
+          if (-not $content.Contains(' %*')) { throw "${bat}: '%*' not found" }
+          $options = ($env:EXTRA_CONFIGURE | ConvertFrom-Json | ForEach-Object { "`"$_`"" }) -join ' '
+          Set-Content $bat $content.Replace(' %*', " $options %*") -NoNewline
+          Get-Content $bat
 
       - name: Set version
         shell: pwsh
@@ -157,6 +175,7 @@ jobs:
         env:
           COMPILER: ${{ needs.config.outputs.compiler }}
           CHECK_PROVIDER: ${{ needs.config.outputs.build_provider }}
+          EXTRA_CONFIGURE: ${{ needs.config.outputs.extra_configure }}
         run: |
           Get-ChildItem | Format-Table Name, Length
           $zip = Get-ChildItem "php-$env:BASE_VERSION*.zip" | Select-Object -First 1
@@ -177,6 +196,15 @@ jobs:
             $line = ($info -split "`r?`n" | Where-Object { $_ -like "$key =>*" } | Select-Object -First 1)
             Write-Host $line
             if (-not $line -or -not $line.Contains($expected[$key])) { throw "$key mismatch, expected '$($expected[$key])'" }
+          }
+
+          # Shared extensions enabled by the extra configure options are shipped
+          foreach ($option in ($env:EXTRA_CONFIGURE | ConvertFrom-Json)) {
+            if ($option -match '^--with-([a-z0-9-]+)=.*,shared$') {
+              $dll = Join-Path $dir "ext\php_$($Matches[1] -replace '-', '_').dll"
+              if (-not (Test-Path $dll)) { throw "$(Split-Path $dll -Leaf) is missing" }
+              Write-Host "$(Split-Path $dll -Leaf) shipped"
+            }
           }
 
           # Every shipped extension loads without any startup warning. Same exclusions

@@ -34,7 +34,8 @@ attached to the [releases](https://github.com/Jamalofski/php-eol-security/releas
 | Sources | the last official release of the branch plus the fixes listed in [PATCHES.md](PATCHES.md), pinned per branch in [versions.json](versions.json); the only change made here is the version string |
 | Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7.4 has no such entry) |
 | Toolchain | the one of the official builds of the branch (table above), on `windows-2022` |
-| Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as official builds |
+| Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for 7.4, the workflow adds back OCI8 and PDO_OCI, which the 7.4 releases shipped and the builder no longer enables |
+| Oracle SDK | OCI8 and PDO_OCI are built against the current Oracle Instant Client SDK, as the official builder does |
 | Dependencies | official packages from downloads.php.net for the branch |
 | Variants | x64 / x86, TS / NTS |
 
