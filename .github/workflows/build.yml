@@ -33,6 +33,7 @@ jobs:
       compiler: ${{ steps.cfg.outputs.compiler }}
       build_provider: ${{ steps.cfg.outputs.build_provider }}
       extra_configure: ${{ steps.cfg.outputs.extra_configure }}
+      latest: ${{ steps.cfg.outputs.latest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -53,6 +54,8 @@ jobs:
             echo "compiler=$(jq -r .compiler cfg.json)"
             echo "build_provider=$(jq -r .build_provider cfg.json)"
             echo "extra_configure=$(jq -c '.extra_configure // []' cfg.json)"
+            # Only the highest branch gets the "Latest" badge on GitHub
+            echo "latest=$(jq -r --arg b "$BRANCH" 'keys | map(split(".") | map(tonumber)) | max | map(tostring) | join(".") == $b' versions.json)"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -255,10 +258,22 @@ jobs:
         if: inputs.release
         env:
           GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ needs.config.outputs.latest }}
         run: |
-          TAG="php-${BASE_VERSION}${VERSION_SUFFIX}"
+          VERSION="${BASE_VERSION}${VERSION_SUFFIX}"
           LEVEL="${VERSION_SUFFIX#-pl}"
-          gh release create "$TAG" dist/*.zip dist/SHA256SUMS \
-            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "PHP ${BASE_VERSION} Patch Level ${LEVEL} (${BASE_VERSION}${VERSION_SUFFIX}) — unofficial EOL security build" \
-            --notes "Unofficial Windows binaries of ${PHP_SRC_REPO}@${PHP_SRC_SHA}. Fixes included: see PATCHES.md, section ${BASE_VERSION}${VERSION_SUFFIX}. Built by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          cat > notes.md <<EOF
+          Unofficial Windows build of PHP ${BASE_VERSION} with security fixes. **Not an official PHP Group release.**
+
+          - Version: \`${VERSION}\` (Patch Level ${LEVEL})
+          - Source: [${PHP_SRC_REPO}@${PHP_SRC_SHA:0:7}](${GITHUB_SERVER_URL}/${PHP_SRC_REPO}/commit/${PHP_SRC_SHA})
+          - Fixes included: [PATCHES.md](${REPO_URL}/blob/${GITHUB_SHA}/PATCHES.md)
+          - Built and tested by [run ${GITHUB_RUN_ID}](${REPO_URL}/actions/runs/${GITHUB_RUN_ID}) (GitHub keeps run logs for 90 days)
+          - Checksums: \`SHA256SUMS\`
+          EOF
+          cat notes.md
+          gh release create "php-${VERSION}" dist/*.zip dist/SHA256SUMS \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest="$LATEST" \
+            --title "PHP ${BASE_VERSION} Patch Level ${LEVEL} (${VERSION}) — unofficial EOL security build" \
+            --notes-file notes.md
