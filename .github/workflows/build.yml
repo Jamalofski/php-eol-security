@@ -163,7 +163,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="php-${BASE_VERSION}${VERSION_SUFFIX}"
+          LEVEL="${VERSION_SUFFIX#-pl}"
           gh release create "$TAG" dist/*.zip dist/SHA256SUMS \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "PHP ${BASE_VERSION}${VERSION_SUFFIX} (unofficial EOL security build)" \
+            --title "PHP ${BASE_VERSION} Patch Level ${LEVEL} (${BASE_VERSION}${VERSION_SUFFIX}) — unofficial EOL security build" \
             --notes "Unofficial Windows binaries of ${PHP_SRC_REPO}@${PHP_SRC_SHA}. Fixes included: see PATCHES.md, section ${BASE_VERSION}${VERSION_SUFFIX}. Built by run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
