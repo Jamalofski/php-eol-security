@@ -54,6 +54,15 @@ php -i | findstr "Build Provider"     # Jamal TANTAOUI (unofficial EOL security 
 
 Check the zips against `SHA256SUMS` attached to the release.
 
+## Upstream watch
+
+Every Monday, [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) checks
+php-src and opens an issue labelled `upstream-watch` when:
+
+- the branch a patch level is built from, or its base branch `PHP-x.y`, gets new commits;
+- a new `PHP-x.y-*` fix branch appears for a branch built here;
+- php-src publishes new security advisories.
+
 ## Limits
 
 - Only the fixes listed in [PATCHES.md](PATCHES.md). Bundled libraries stay at the
