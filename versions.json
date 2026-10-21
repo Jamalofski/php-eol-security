@@ -1,0 +1,26 @@
+{
+  "8.1": {
+    "php_src_repo": "php/php-src",
+    "php_src_sha": "1d7dec178a094e6e75b229ce22754045f8c6070a",
+    "base_version": "8.1.34",
+    "patch_level": 1,
+    "compiler": "Visual C++ 2019",
+    "build_provider": true
+  },
+  "8.0": {
+    "php_src_repo": "php/php-src",
+    "php_src_sha": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20",
+    "base_version": "8.0.30",
+    "patch_level": 1,
+    "compiler": "Visual C++ 2019",
+    "build_provider": true
+  },
+  "7.4": {
+    "php_src_repo": "php/php-src",
+    "php_src_sha": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
+    "base_version": "7.4.33",
+    "patch_level": 1,
+    "compiler": "Visual C++ 2017",
+    "build_provider": false
+  }
+}

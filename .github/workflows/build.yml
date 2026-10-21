@@ -1,40 +1,74 @@
-name: Build PHP 8.1.34-pl1
-run-name: Build PHP 8.1.34-pl1 (release=${{ inputs.release }})
+name: Build
+run-name: Build PHP ${{ inputs.branch }} (release=${{ inputs.release }})
 
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: PHP branch, as listed in versions.json
+        type: choice
+        options: ['8.1', '8.0', '7.4']
       release:
         description: Publish a GitHub release with the binaries
         type: boolean
         default: false
 
 env:
-  # Sources of this patch level, see PATCHES.md.
-  # pl1 = branch PHP-8.1-CVE-2026-109618-109619, commit "Avoid state corruption via bailout"
-  PHP_SRC_REPO: php/php-src
-  PHP_SRC_SHA: 1d7dec178a094e6e75b229ce22754045f8c6070a
   # Official Windows builder (php/php-windows-builder), pinned
   BUILDER_SHA: 5f63433eb2bda2ca8d0d970fe487be84f7ab195c
-  BASE_VERSION: 8.1.34
-  # "pl" (patch level) sorts after the base version for version_compare() and Composer
-  VERSION_SUFFIX: -pl1
   PHP_BUILD_PROVIDER: "Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security"
 
 permissions:
   contents: read
 
 jobs:
+  config:
+    name: Config ${{ inputs.branch }}
+    runs-on: ubuntu-latest
+    outputs:
+      php_src_repo: ${{ steps.cfg.outputs.php_src_repo }}
+      php_src_sha: ${{ steps.cfg.outputs.php_src_sha }}
+      base_version: ${{ steps.cfg.outputs.base_version }}
+      version_suffix: ${{ steps.cfg.outputs.version_suffix }}
+      compiler: ${{ steps.cfg.outputs.compiler }}
+      build_provider: ${{ steps.cfg.outputs.build_provider }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Read versions.json
+        id: cfg
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          jq -e --arg b "$BRANCH" '.[$b]' versions.json > cfg.json
+          cat cfg.json
+          {
+            echo "php_src_repo=$(jq -r .php_src_repo cfg.json)"
+            echo "php_src_sha=$(jq -r .php_src_sha cfg.json)"
+            echo "base_version=$(jq -r .base_version cfg.json)"
+            # "pl" (patch level) sorts after the base version for version_compare() and Composer
+            echo "version_suffix=-pl$(jq -r .patch_level cfg.json)"
+            echo "compiler=$(jq -r .compiler cfg.json)"
+            echo "build_provider=$(jq -r .build_provider cfg.json)"
+          } >> "$GITHUB_OUTPUT"
+
   build:
-    name: Build ${{ matrix.arch }} ${{ matrix.ts }}
+    name: Build ${{ inputs.branch }} ${{ matrix.arch }} ${{ matrix.ts }}
+    needs: config
     strategy:
       fail-fast: false
       matrix:
         arch: [x64, x86]
         ts: [nts, ts]
-    # Same runner image as the official 8.1 builds (VS 2022 + v142 toolset = vs16)
+    # Same runner image as the official builds; the builder installs the
+    # toolset of the branch (vc15 for 7.4, vs16 for 8.0 and 8.1)
     runs-on: windows-2022
     env:
+      PHP_SRC_REPO: ${{ needs.config.outputs.php_src_repo }}
+      PHP_SRC_SHA: ${{ needs.config.outputs.php_src_sha }}
+      BASE_VERSION: ${{ needs.config.outputs.base_version }}
+      VERSION_SUFFIX: ${{ needs.config.outputs.version_suffix }}
       # configure.bat resolves the Oracle SDK as ..\..\..\..\instantclient from the
       # source directory, so the sources sit four levels below the workspace.
       SRC_DIR: build/${{ matrix.arch }}/${{ matrix.ts }}/php-src
@@ -66,20 +100,28 @@ jobs:
           Expand-Archive instantclient-sdk.zip -DestinationPath .
           Move-Item instantclient_* instantclient
 
-      - name: Set version suffix
+      - name: Set version
         shell: pwsh
         working-directory: ${{ env.SRC_DIR }}
         run: |
+          # EOL branches may carry a "-dev" bump after their last release: the
+          # version is set from versions.json, not kept from the sources.
           $version = "$env:BASE_VERSION$env:VERSION_SUFFIX"
+          [int]$major, [int]$minor, [int]$release = $env:BASE_VERSION.Split('.')
           $patches = @(
-            @{ File = 'configure.ac'; From = "AC_INIT([PHP],[$env:BASE_VERSION]"; To = "AC_INIT([PHP],[$version]" },
-            @{ File = 'main/php_version.h'; From = '#define PHP_EXTRA_VERSION ""'; To = "#define PHP_EXTRA_VERSION `"$env:VERSION_SUFFIX`"" },
-            @{ File = 'main/php_version.h'; From = "#define PHP_VERSION `"$env:BASE_VERSION`""; To = "#define PHP_VERSION `"$version`"" }
+            @{ File = 'configure.ac'; From = 'AC_INIT\(\[PHP\],\[[^\]]+\]'; To = "AC_INIT([PHP],[$version]" },
+            @{ File = 'main/php_version.h'; From = "#define PHP_MAJOR_VERSION $major\b"; To = "#define PHP_MAJOR_VERSION $major" },
+            @{ File = 'main/php_version.h'; From = "#define PHP_MINOR_VERSION $minor\b"; To = "#define PHP_MINOR_VERSION $minor" },
+            @{ File = 'main/php_version.h'; From = '#define PHP_RELEASE_VERSION \d+'; To = "#define PHP_RELEASE_VERSION $release" },
+            @{ File = 'main/php_version.h'; From = '#define PHP_EXTRA_VERSION "[^"]*"'; To = "#define PHP_EXTRA_VERSION `"$env:VERSION_SUFFIX`"" },
+            @{ File = 'main/php_version.h'; From = '#define PHP_VERSION "[^"]*"'; To = "#define PHP_VERSION `"$version`"" },
+            @{ File = 'main/php_version.h'; From = '#define PHP_VERSION_ID \d+'; To = "#define PHP_VERSION_ID $($major * 10000 + $minor * 100 + $release)" }
           )
           foreach ($p in $patches) {
             $content = Get-Content $p.File -Raw
-            if (-not $content.Contains($p.From)) { throw "$($p.File): '$($p.From)' not found" }
-            Set-Content $p.File $content.Replace($p.From, $p.To) -NoNewline
+            $count = ([regex]::Matches($content, $p.From)).Count
+            if ($count -ne 1) { throw "$($p.File): '$($p.From)' matched $count times" }
+            Set-Content $p.File ([regex]::Replace($content, $p.From, $p.To)) -NoNewline
           }
           git diff
 
@@ -96,6 +138,9 @@ jobs:
       - name: Smoke test
         shell: pwsh
         working-directory: ${{ env.SRC_DIR }}/artifacts
+        env:
+          COMPILER: ${{ needs.config.outputs.compiler }}
+          CHECK_PROVIDER: ${{ needs.config.outputs.build_provider }}
         run: |
           Get-ChildItem | Format-Table Name, Length
           $zip = Get-ChildItem "php-$env:BASE_VERSION*.zip" | Select-Object -First 1
@@ -105,12 +150,13 @@ jobs:
           $php = Join-Path $dir php.exe
 
           $info = & $php -n -i | Out-String
-          $expected = @{
+          $expected = [ordered]@{
             'PHP Version' = "$env:BASE_VERSION$env:VERSION_SUFFIX"
-            'Build Provider' = $env:PHP_BUILD_PROVIDER
-            'Compiler' = 'Visual C++ 2019'
+            'Compiler' = $env:COMPILER
             'Thread Safety' = $(if ('${{ matrix.ts }}' -eq 'ts') { 'enabled' } else { 'disabled' })
           }
+          # PHP 7.4 has no "Build Provider" entry
+          if ($env:CHECK_PROVIDER -eq 'true') { $expected['Build Provider'] = $env:PHP_BUILD_PROVIDER }
           foreach ($key in $expected.Keys) {
             $line = ($info -split "`r?`n" | Where-Object { $_ -like "$key =>*" } | Select-Object -First 1)
             Write-Host $line
@@ -121,7 +167,10 @@ jobs:
           & $php -n -d zend_extension="$ext\php_opcache.dll" -d opcache.enable_cli=1 -r "exit(opcache_get_status() === false ? 1 : 0);"
           if ($LASTEXITCODE -ne 0) { throw 'opcache failed to load' }
           foreach ($name in 'openssl', 'curl', 'mbstring', 'intl', 'sodium', 'gd', 'zip', 'fileinfo', 'pdo_mysql', 'pdo_sqlite', 'sqlite3', 'pgsql') {
-            $out = & $php -n -d extension_dir="$ext" -d extension=$name -r "echo extension_loaded('$name') ? 'ok' : 'KO';" 2>&1 | Out-String
+            # gd ships as php_gd2.dll up to 7.4
+            $dll = "php_$name.dll", "php_${name}2.dll" | ForEach-Object { Join-Path $ext $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $dll) { throw "extension $name not found" }
+            $out = & $php -n -d extension="$dll" -r "echo extension_loaded('$name') ? 'ok' : 'KO';" 2>&1 | Out-String
             Write-Host "$name : $out"
             if ($out.Trim() -ne 'ok') { throw "extension $name failed to load" }
           }
@@ -129,15 +178,20 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: php-${{ matrix.arch }}-${{ matrix.ts }}
+          name: php-${{ needs.config.outputs.base_version }}-${{ matrix.arch }}-${{ matrix.ts }}
           path: ${{ env.SRC_DIR }}/artifacts/*
 
   package:
-    name: Checksums and release
-    needs: build
+    name: Checksums and release ${{ inputs.branch }}
+    needs: [config, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      PHP_SRC_REPO: ${{ needs.config.outputs.php_src_repo }}
+      PHP_SRC_SHA: ${{ needs.config.outputs.php_src_sha }}
+      BASE_VERSION: ${{ needs.config.outputs.base_version }}
+      VERSION_SUFFIX: ${{ needs.config.outputs.version_suffix }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -154,7 +208,7 @@ jobs:
       - name: Upload checksums
         uses: actions/upload-artifact@v7
         with:
-          name: SHA256SUMS
+          name: SHA256SUMS-${{ needs.config.outputs.base_version }}
           path: dist/SHA256SUMS
 
       - name: Release
