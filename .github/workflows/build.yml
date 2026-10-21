@@ -135,7 +135,22 @@ jobs:
           Import-Module "$env:GITHUB_WORKSPACE\builder\php\BuildPhp" -Force
           Invoke-PhpBuild -Arch ${{ matrix.arch }} -Ts ${{ matrix.ts }}
 
-      - name: Smoke test
+      # Before the tests, so that a failing test keeps the binaries for inspection;
+      # the package job only runs when every build job, tests included, succeeded.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: php-${{ needs.config.outputs.base_version }}-${{ matrix.arch }}-${{ matrix.ts }}
+          path: ${{ env.SRC_DIR }}/artifacts/*
+
+      - name: Official smoke test
+        shell: pwsh
+        working-directory: ${{ env.SRC_DIR }}
+        run: |
+          Import-Module "$env:GITHUB_WORKSPACE\builder\php\BuildPhp" -Force
+          Invoke-PhpSmokeTests -ArtifactsDirectory artifacts -Arch ${{ matrix.arch }} -Ts ${{ matrix.ts }}
+
+      - name: Build identity and extensions
         shell: pwsh
         working-directory: ${{ env.SRC_DIR }}/artifacts
         env:
@@ -163,23 +178,19 @@ jobs:
             if (-not $line -or -not $line.Contains($expected[$key])) { throw "$key mismatch, expected '$($expected[$key])'" }
           }
 
-          $ext = Join-Path $dir ext
-          & $php -n -d zend_extension="$ext\php_opcache.dll" -d opcache.enable_cli=1 -r "exit(opcache_get_status() === false ? 1 : 0);"
-          if ($LASTEXITCODE -ne 0) { throw 'opcache failed to load' }
-          foreach ($name in 'openssl', 'curl', 'mbstring', 'intl', 'sodium', 'gd', 'zip', 'fileinfo', 'pdo_mysql', 'pdo_sqlite', 'sqlite3', 'pgsql') {
-            # gd ships as php_gd2.dll up to 7.4
-            $dll = "php_$name.dll", "php_${name}2.dll" | ForEach-Object { Join-Path $ext $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $dll) { throw "extension $name not found" }
-            $out = & $php -n -d extension="$dll" -r "echo extension_loaded('$name') ? 'ok' : 'KO';" 2>&1 | Out-String
-            Write-Host "$name : $out"
-            if ($out.Trim() -ne 'ok') { throw "extension $name failed to load" }
+          # Every shipped extension loads without any startup warning. Same exclusions
+          # as the official smoke test: Oracle and Firebird need client libraries that
+          # are not shipped, SNMP needs MIB files.
+          $loadArgs = @()
+          foreach ($dll in Get-ChildItem (Join-Path $dir ext) -Filter 'php_*.dll') {
+            if ($dll.Name -in 'php_pdo_firebird.dll', 'php_snmp.dll', 'php_pdo_oci.dll' -or $dll.Name -like 'php_oci8*.dll') { continue }
+            $directive = if ($dll.Name -eq 'php_opcache.dll') { 'zend_extension' } else { 'extension' }
+            $loadArgs += '-d', "$directive=$($dll.FullName)"
           }
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: php-${{ needs.config.outputs.base_version }}-${{ matrix.arch }}-${{ matrix.ts }}
-          path: ${{ env.SRC_DIR }}/artifacts/*
+          Write-Host "Loading $($loadArgs.Count / 2) extensions"
+          $out = (& $php -n @loadArgs -d opcache.enable_cli=1 -r "echo opcache_get_status() === false ? 'KO' : 'ok';" 2>&1 | Out-String).Trim()
+          Write-Host $out
+          if ($out -ne 'ok') { throw 'extensions did not load cleanly' }
 
   package:
     name: Checksums and release ${{ inputs.branch }}
