@@ -272,16 +272,18 @@ jobs:
           VERSION="${BASE_VERSION}${VERSION_SUFFIX}"
           LEVEL="${VERSION_SUFFIX#-pl}"
           REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
-          SAMPLE_ZIP=$(cd dist && ls php-${VERSION}-nts-Win32-*-x64.zip)
+          TS_ZIP=$(cd dist && ls php-${VERSION}-Win32-*-x64.zip)
+          NTS_ZIP=$(cd dist && ls php-${VERSION}-nts-Win32-*-x64.zip)
           cat > notes.md <<EOF
           Unofficial Windows build of PHP ${BASE_VERSION} with security fixes. **Not an official PHP Group release.**
 
           - Version: \`${VERSION}\` (Patch Level ${LEVEL})
+          - Which zip: \`${TS_ZIP}\` (Thread Safe) for Apache with mod_php, \`${NTS_ZIP}\` (NTS) for IIS, nginx or the command line; x86 zips for 32-bit servers.
           - Source: [${PHP_SRC_REPO}@${PHP_SRC_SHA:0:7}](${GITHUB_SERVER_URL}/${PHP_SRC_REPO}/commit/${PHP_SRC_SHA})
           - Fixes included: [PATCHES.md](${REPO_URL}/blob/${GITHUB_SHA}/PATCHES.md)
           - Built and tested by [run ${GITHUB_RUN_ID}](${REPO_URL}/actions/runs/${GITHUB_RUN_ID}) (GitHub keeps run logs for 90 days)
           - Checksums: \`SHA256SUMS\`
-          - Provenance: \`gh attestation verify ${SAMPLE_ZIP} --repo ${GITHUB_REPOSITORY}\`
+          - Provenance: \`gh attestation verify ${NTS_ZIP} --repo ${GITHUB_REPOSITORY}\`
           EOF
           cat notes.md
           gh release create "php-${VERSION}" dist/*.zip dist/SHA256SUMS \

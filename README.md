@@ -17,6 +17,10 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
 - Each patch level includes the fixes of the previous ones.
 - Release tags are `php-<version>`; zips keep the official naming
   (`php-8.1.34-pl1-Win32-vs16-x64.zip`, `php-8.1.34-pl1-nts-Win32-vs16-x64.zip`…).
+- Which zip: Thread Safe (`php-<version>-Win32-…`) for Apache with mod_php, as only it
+  contains the Apache module; NTS (`php-<version>-nts-Win32-…`) for IIS, nginx or the
+  command line. Take x64 or x86 to match your server. The debug, devel and test packs are
+  only for debugging, building extensions or running the test suite.
 
 Patch levels, each fixing CVE-2026-109618 and CVE-2026-109619. Binaries are
 attached to the [releases](https://github.com/Jamalofski/php-eol-security/releases).
