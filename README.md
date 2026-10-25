@@ -22,9 +22,10 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
   command line. Take x64 or x86 to match your server. The debug, devel and test packs are
   only for debugging, building extensions or running the test suite.
 
-Current patch levels. Each one carries every php-src security fix published for the
-branch since its end of life, as listed in [PATCHES.md](PATCHES.md). Binaries are
-attached to the [releases](https://github.com/Jamalofski/php-eol-security/releases).
+Current patch levels. Each one carries the php-src security fixes published since the
+end of life of the branch, as backported by Remi Collet and listed in
+[PATCHES.md](PATCHES.md). Binaries are attached to the
+[releases](https://github.com/Jamalofski/php-eol-security/releases).
 
 | Branch | Version | Toolchain |
 |---|---|---|
