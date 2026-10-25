@@ -1,0 +1,14 @@
+{
+  "5dd8dd8493d49bb6fcd810a6e9d2ffb6fdc15714": {
+    "branch": "8.1",
+    "note": "Same change as the official fix db2a7f9; only the surrounding context differs (8.1 still releases fn_name in these error paths)."
+  },
+  "07e5a9263314fd9a2a4479661353704e00dd8d0c": {
+    "branch": "8.1",
+    "note": "Same unsigned char casts as the official fix a384187. Not applied: the quantity parser of Zend/zend_ini.c and main/php_ini_builder.c, which do not exist in 8.1. In ext/filter/logical_filters.c and ext/pcre/php_pcre.c the cast is applied to the 8.1 form of the line, which lacks conditions added in 8.2."
+  },
+  "1e06d14cdc77d28b88d2daa99bdfdd4dfaae831b": {
+    "branch": "8.1",
+    "note": "Same change as the official 8.1 fix 1d7dec1 (PHP-8.1-CVE-2026-109618-109619); in main/rfc1867.c the removed lines already carry the casts of GHSA-m8rr-4c36-8gq4 (07e5a92)."
+  }
+}

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Watch php/php-src for changes that may call for a new patch level.
+"""Watch the sources of the patch levels for changes that may call for a new one.
 
 Opens an issue in this repository, labelled "upstream-watch", for:
-- commits on the branch a patch level is built from, or on its base branch
-  PHP-x.y, that the patch level does not include;
+- commits on the branch a patch level is built from (php_src_repo/php_src_branch)
+  after the pinned commit;
+- commits on the official php-src branches of upstream_refs after the commit
+  recorded there, or the removal of one of them;
 - a new PHP-x.y-* branch on php-src, for a branch listed in versions.json;
 - php-src security advisories published since WATCH_SINCE (one issue per batch).
 A finding already reported by an issue, open or closed, is not reported again.
@@ -58,33 +60,49 @@ def branch_link(branch):
     return f'[`{branch}`](https://github.com/{UPSTREAM}/tree/{branch})'
 
 
+def new_commits(repo, branch, known, level, built_from):
+    """Finding for commits on repo/branch after the known commit, or for the branch's removal."""
+    comparison = request('GET', f'/repos/{repo}/compare/{known}...{branch}')
+    if comparison is None and request('GET', f'/repos/{repo}/branches/{branch}') is None:
+        return (f'Branch {branch} of {repo} was deleted',
+                f'`{branch}` no longer exists on {repo} ({level} is built from {built_from}). '
+                'Its commits may have moved to another branch: check them.')
+    if comparison is None or comparison['behind_by'] > 0:
+        return (f'History of {repo} {branch} was rewritten',
+                f'`{branch}` on {repo} no longer contains {known[:7]}, the commit recorded for it '
+                f'({level} is built from {built_from}). Check what changed before building anything from it.')
+    if comparison['ahead_by'] == 0:
+        return None
+    commits = comparison['commits']
+    lines = '\n'.join(f"- [{c['sha'][:7]}](https://github.com/{repo}/commit/{c['sha']}) "
+                      f"{c['commit']['message'].splitlines()[0]}" for c in commits)
+    return (f"New commits on {repo} {branch} (head {commits[-1]['sha'][:7]})",
+            f"[`{branch}`](https://github.com/{repo}/tree/{branch}) has {comparison['ahead_by']} commit(s) "
+            f'after {known[:7]} that {level} (built from {built_from}) does not include:\n\n{lines}\n\n'
+            'If they fix security issues, build the next patch level: pin the new commits in versions.json, '
+            'run .github/scripts/verify_backports.py, review the adapted commits, update PATCHES.md, '
+            'then run the Build workflow.')
+
+
 def branch_findings(minor, config):
     level = f"{config['base_version']}-pl{config['patch_level']}"
-    pinned = config['php_src_sha']
-    tracked = config['php_src_branch']
-    for branch in (tracked, f'PHP-{minor}'):
-        comparison = request('GET', f'/repos/{UPSTREAM}/compare/{pinned}...{branch}')
-        if comparison is None:
-            if branch == tracked:
-                yield (f'Upstream branch {branch} was deleted',
-                       f'`{branch}`, which {level} is built from, no longer exists on {UPSTREAM}. '
-                       f'Its commits may have moved to another PHP-{minor} branch: check them.')
-            continue
-        if comparison['ahead_by'] == 0:
-            continue
-        commits = comparison['commits']
-        lines = '\n'.join(f"- {commit_link(c['sha'])} {c['commit']['message'].splitlines()[0]}" for c in commits)
-        yield (f"New commits on {UPSTREAM} {branch} (head {commits[-1]['sha'][:7]})",
-               f"{branch_link(branch)} has {comparison['ahead_by']} commit(s) that {level} "
-               f'(built from {UPSTREAM}@{pinned[:7]}) does not include:\n\n{lines}\n\n'
-               'If they fix security issues, build the next patch level: update versions.json '
-               'and PATCHES.md, then run the Build workflow.')
+    repo, pinned = config['php_src_repo'], config['php_src_sha']
+    built_from = f'{repo}@{pinned[:7]}'
+    finding = new_commits(repo, config['php_src_branch'], pinned, level, built_from)
+    if finding:
+        yield finding
+    # Official branches of this version, with the commit each one was at when last checked
+    for branch, known in config.get('upstream_refs', {}).items():
+        finding = new_commits(UPSTREAM, branch, known, level, built_from)
+        if finding:
+            yield finding
 
 
 def new_branch_findings(minor, config):
+    known = set(config.get('upstream_refs', {})) | {config['php_src_branch']}
     for ref in request('GET', f'/repos/{UPSTREAM}/git/matching-refs/heads/PHP-{minor}-') or []:
         branch = ref['ref'].removeprefix('refs/heads/')
-        if branch == config['php_src_branch']:
+        if branch in known:
             continue
         head = request('GET', f"/repos/{UPSTREAM}/commits/{ref['object']['sha']}")
         message = head['commit']['message'].splitlines()[0]

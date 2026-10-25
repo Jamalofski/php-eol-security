@@ -1,35 +1,53 @@
 {
   "8.1": {
-    "php_src_repo": "php/php-src",
-    "php_src_branch": "PHP-8.1-CVE-2026-109618-109619",
-    "php_src_sha": "1d7dec178a094e6e75b229ce22754045f8c6070a",
+    "php_src_repo": "remicollet/php-src-security",
+    "php_src_branch": "PHP-8.1-security-backports",
+    "php_src_sha": "ed316bc682381472fa0c530a799905a6ec4f7e71",
+    "base_tag": "php-8.1.34",
+    "base_commit": "51dc7cfb926ca4ea38f6574618ad0db9868c15c1",
     "base_version": "8.1.34",
-    "patch_level": 1,
+    "patch_level": 2,
     "compiler": "Visual C++ 2019",
     "build_provider": true,
-    "extra_configure": []
+    "extra_configure": [],
+    "upstream_refs": {
+      "PHP-8.1": "6f82565f12630ba320c52c96e28160189b15ecbf",
+      "PHP-8.1-CVE-2026-109618-109619": "1d7dec178a094e6e75b229ce22754045f8c6070a"
+    }
   },
   "8.0": {
-    "php_src_repo": "php/php-src",
-    "php_src_branch": "PHP-8.0-CVE-2026-109618-109619",
-    "php_src_sha": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20",
+    "php_src_repo": "remicollet/php-src-security",
+    "php_src_branch": "PHP-8.0-security-backports",
+    "php_src_sha": "975d905a1681c0708aa88b26b1a7985fcfa517c2",
+    "base_tag": "php-8.0.30",
+    "base_commit": "8213daa932be1c2ae04726233e4e56e5df63980e",
     "base_version": "8.0.30",
-    "patch_level": 1,
+    "patch_level": 2,
     "compiler": "Visual C++ 2019",
     "build_provider": true,
-    "extra_configure": []
+    "extra_configure": [],
+    "upstream_refs": {
+      "PHP-8.0": "670052c427eb08a67577789e3b00e56a4fd640a7",
+      "PHP-8.0-CVE-2026-109618-109619": "82f8f31b16a035c1b67cc253e79f7cc288f4cc20"
+    }
   },
   "7.4": {
-    "php_src_repo": "php/php-src",
-    "php_src_branch": "PHP-7.4-CVE-2026-109618-109619",
-    "php_src_sha": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
+    "php_src_repo": "remicollet/php-src-security",
+    "php_src_branch": "PHP-7.4-security-backports",
+    "php_src_sha": "239d8122851d31a5e7350f77b32810e58d56c1f4",
+    "base_tag": "php-7.4.33",
+    "base_commit": "dca8d5565b947270a29f232bc54efd9df3b92b94",
     "base_version": "7.4.33",
-    "patch_level": 1,
+    "patch_level": 2,
     "compiler": "Visual C++ 2017",
     "build_provider": false,
     "extra_configure": [
       "--with-pdo-oci=..\\..\\..\\..\\instantclient\\sdk,shared",
       "--with-oci8-12c=..\\..\\..\\..\\instantclient\\sdk,shared"
-    ]
+    ],
+    "upstream_refs": {
+      "PHP-7.4": "004cb827501d1ddaf98daacb185a53e0816f78a7",
+      "PHP-7.4-CVE-2026-109618-109619": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2"
+    }
   }
 }
