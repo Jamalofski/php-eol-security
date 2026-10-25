@@ -1,14 +1,285 @@
 {
-  "5dd8dd8493d49bb6fcd810a6e9d2ffb6fdc15714": {
-    "branch": "8.1",
-    "note": "Same change as the official fix db2a7f9; only the surrounding context differs (8.1 still releases fn_name in these error paths)."
+  "0530cbfe5c3044537de52d8382eba5d69dbac726": {
+    "branch": "7.4",
+    "note": "Identical to the 8.0 backport of 69c5f68; only hunk offsets differ."
+  },
+  "087e974d74efc977dfbd18fd3cd568b60fb7675d": {
+    "branch": "7.4",
+    "note": "Same added and removed lines as official fa6a0f8; only the context differs (7.4's _php_libxml_free_error() signature, and libxml_get_last_error() without ZEND_PARSE_PARAMETERS_NONE()). It only switches xmlErrorPtr to const xmlError* (version-guarded for the handler signatures) to follow the libxml2 2.12 API, with no behaviour change."
+  },
+  "08be64e40197fc12dca5f802d16748d9c3cb4cb4": {
+    "branch": "7.4",
+    "note": "The official fix is 7e0e3cc (Remi cherry-picked his 8.0 commit 4066610, which is identical to it); the 7.4 patch is identical except zend_bool instead of bool for the new php_filter_is_valid_ipv6_hostname(), which is why patch-id found no match. The 7.4 php_filter_validate_url() keeps the is_userinfo_valid() checks that now also run for bracketed IPv6 hosts, as in the official fix.",
+    "official": "7e0e3cc"
+  },
+  "0b965cf85f512b1a7b87f100ac77e4aa13f7f421": {
+    "branch": "7.4",
+    "note": "Identical to official 0548c4c except that bool/true/false become zend_bool/1/0 for the new header_info.error flag; the no-colon and space-in-header-name checks and the close-stream/goto out error path are the same. The test changes only adapt to 7.4 ('failed to open stream', positional phpt_notify())."
+  },
+  "0cfca9aa1395271833848daec0bace51d965531d": {
+    "branch": "7.4",
+    "note": "Identical to the official PHP-8.0 fix shipped in 8.0.29, ac4254a plus its follow-up 32c7c43 ('Fix wrong backporting of previous soap patch'): official 126d517 (8.1) resets the connection with Z_CLIENT_*_P macros that only exist from 8.1, while 7.4/8.0 keep httpurl/httpsocket/_use_proxy as dynamic properties and delete them with zend_hash_str_del() as the other error paths of make_http_soap_request() do. The php_hash.h include needed for php_hash_bin2hex() comes with the next commit #16 4043903 (= official 0572448), as in 8.0.29."
+  },
+  "24e669e790e6aebd219c9a9fa19017455c8646b4": {
+    "branch": "7.4",
+    "note": "7.4 port of the zend_test part of official c283c3a together with official follow-up 62228a2 ('Disable global state test on Windows'): zend_test_override_libxml_global_state() and its libxml includes are guarded by HAVE_LIBXML && !PHP_WIN32 and registered in 7.4's hand-written function table, and the three tests skip when the function is absent (the xmlreader test also gains '@' on XMLReader::xml/open). zend_test is built (shared php_zend_test.dll, forced on by the builder's --enable-snapshot-build), but the guarded code is not compiled on Windows, so the change is test-only and leaves the binaries unchanged."
+  },
+  "270ef4b7432a41c5b693b17ab2ca6e92e5a5d173": {
+    "branch": "7.4",
+    "note": "Official 79a054e makes php_mb_regex_set_mbctype() fail on encodings unknown to mbfl so that it never caches a NULL MBREX(current_mbctype_mbfl_encoding). 7.4 has no such cached pointer (checked at the branch head): every mb_ereg* path resolves the name through php_mb_check_encoding()/mbfl_name2encoding(), whose NULL check only warns 'Invalid encoding', so skipping the C change and adding only the test (expecting that 7.4 warning) is justified."
+  },
+  "2af14de0f22337c686e3b99c5c6b97b332a805fd": {
+    "branch": "7.4",
+    "note": "Same C changes as 114dbb7 (identical to the 8.0 backport), except zend_bool/0/1 for bool and the bounded MariaDB '5.5.5-' prefix check, whose code does not exist in 7.4. As in 8.0, 'Partial' only concerned 14 tests, which were re-added without XFAIL after their expected output was fixed (157ce35, cfbfb61); the branch NEWS now says Fixed."
+  },
+  "38c5fb2662712ed9812481c2960ecfa004059d6a": {
+    "branch": "7.4",
+    "note": "Merge commit of PR #13 (Jan-E:PHP-7.4-VS16-libzip, merged by remicollet on 2023-12-03): its diff against first parent 24e669e is exactly the 4 lines of d8de754 in ext/zip/config.w32 and nothing else. Same assessment as d8de754: dead code for vc15 (VCVERS < 1920) and no external code pulled."
+  },
+  "3e9d47f6cc04c9978bb384e2d487cf28d37889f0": {
+    "branch": "7.4",
+    "note": "Same parameter hardening as official ed70b1e on the same functions, including dns_win32.c, adapted to 7.4: php_inet_pton, Z_PARAM_PATH for the char* name, 'p|s', and a plain return instead of RETURN_THROWS. Only the test expectations change, to 7.4's 'valid path' warnings."
+  },
+  "408692d76c09b6769064bf280fe77e4f85880465": {
+    "branch": "7.4",
+    "note": "Same port of e3c784f as the 8.0 commit, using the Win32 BOOL type (an int) and 0/1 instead of bool. stricmp_end still returns the _stricmp int result, so the == 0 comparisons are unchanged; the tests are identical.",
+    "official": "e3c784f"
+  },
+  "494de65139592da0e5e5b6fdf198c2f9c762f4d6": {
+    "branch": "7.4",
+    "note": "Same change as official 426a6d4, except the new CR/LF error path frees transport_string with efree() instead of zend_string_release(). In 7.4 transport_string is a char* from estrndup()/spprintf() that the function already frees with efree() elsewhere; the only other difference is the 7.4 lowercase 'failed to open stream' in the test expectation."
+  },
+  "4a7ceb9d6427f8d368f1a8739267b1f8310ec201": {
+    "branch": "7.4",
+    "note": "Same memchr() NUL check as official 0ba5229 at the top of php_password_bcrypt_hash(), but it emits E_WARNING and returns NULL (password_hash() then returns NULL) instead of throwing ValueError, which does not exist in 7.4; this is how 7.4 already reports the other bcrypt errors such as an invalid cost. The test expectation is adapted to the warning."
+  },
+  "50e9e72530a4805980384b8ea6672877af816145": {
+    "branch": "7.4",
+    "note": "The overflow checks in php_ldap_do_escape() are identical to official f9ecf90; only the error report is adapted because zend_argument_value_error()/RETURN_THROWS()/ValueError do not exist in 7.4, so it throws a base Exception via zend_throw_exception() (adding the zend_exceptions.h include) and returns. Test-only nit: the 32-bit-only tests still expect an 'ldap_escape(): ' message prefix that zend_throw_exception() does not add, so they would fail on x86 test runs."
+  },
+  "5418040dcaaca46965ed6f8a4ad1541709c32e9f": {
+    "branch": "7.4",
+    "note": "Identical to official ac1a054 except bool/true become zend_bool/1; in the context, the recursive call passes HTTP_WRAPPER_REDIRECTED instead of new_flags only because the GH-11274 redirect-method change is backported later (#100). The heap-allocated location, the 8182-byte limit and the header_info init moved before the first goto out are all as in the official fix."
+  },
+  "65760383843323ffd15cda8dac83ae9c78e97e6f": {
+    "branch": "7.4",
+    "note": "Same code as 4b15f5d, with BOOL/0/1 instead of bool/false/true. php_win32_cp_conv_any_to_w is already used elsewhere in 7.4's proc_open.c, and the tests are identical.",
+    "official": "4b15f5d"
+  },
+  "6a80d9d36a5ea210ea6cc411864c08c71f7417ec": {
+    "branch": "7.4",
+    "note": "Same change as ab048bd on the 7.4 smart_str form of php_pgsql_add_quotes(): E prefix removed, comment dropped, PQescapeStringConn() only re-wrapped, and the same nine callers as upstream. The Windows config.w32 defines HAVE_PQESCAPE_CONN and HAVE_PQESCAPE_BYTEA_CONN, so the escapers that take the connection's settings into account are used, as plain '' literals need."
+  },
+  "6cf0fb3c48fda6a236359304e4db663ae77d858c": {
+    "branch": "7.4",
+    "note": "The official fix c5f28c7 patches php_read_stream_all_chunks(), which 7.4 lacked; the backport adds that helper as it is in 8.1 (from the bug #75708 fix 52aa0d9), with the fix applied. Remark: this also brings #75708's change to how getimagesize() reads APPn segments on filtered streams; upstream code, low risk."
+  },
+  "802c21075308066362aab4993478dcd0577993a6": {
+    "branch": "7.4",
+    "note": "Same patch as the official end-of-life fix 712e60f, except for its max_multipart_body_parts INI entry and the body-parts limit in rfc1867.c. The 7.4 branch already has both, at the same places, from 8ec78d2 (identical to 716de0c, CVE-2023-0662). 14 of the 17 files end up byte-identical, and SAPI.c, php_variables.c and rfc1867.c differ only through earlier backports."
+  },
+  "84b83e2979bad57618528d4e669636117022f37c": {
+    "branch": "7.4",
+    "note": "Identical to official 8b80115 (uint64_t count and a count >= HT_MAX_SIZE check before array_init_size()), except that RETURN_THROWS(), absent in 7.4, becomes a plain return after zend_throw_error(), which is what that macro does minus a debug assertion. HT_MAX_SIZE exists in 7.4 with its own value for the branch, so the bound matches what 7.4's zend_hash_check_size() accepts."
+  },
+  "97546df8d6900b115536c17af9213f1da837b82e": {
+    "branch": "7.4",
+    "note": "Identical to the 8.0 backport of d9baa9f (int-returning quoter, returns 0 on overflow); only offsets differ. ZSTR_MAX_LEN exists in 7.4, and the 7.4 callers treat 0 as failure."
+  },
+  "9b8abad4874686f6761b92edf5093e45d43fd14b": {
+    "branch": "7.4",
+    "note": "Same overflow fixes as official b11bd1d in make_http_soap_request() and get_http_body() (size_t http_buf_size, unsigned buf_size, ZSTR_MAX_LEN bounds, safe alloc/realloc); the only differences are false written as 0 and the existing zend_string_realloc(..., 0) line left as is instead of the official's cosmetic change to false. zend_string_safe_alloc(), zend_string_safe_realloc() and ZSTR_MAX_LEN all exist in 7.4."
+  },
+  "a6c1c62a25ac23b08a86af11d68f0e2eaafc102b": {
+    "branch": "7.4",
+    "note": "Same change as official 093c08a (via Remi's 8.0 cherry-pick 2e07a3a): the early __Host-/__Secure- checks are replaced by php_is_forbidden_variable_name() applied right before both insertion points of php_register_variable_ex(). Only 7.4 types differ: zend_bool/1/0 instead of bool/true/false, and the 7.4 signature char *var_name instead of const char *var_name."
+  },
+  "aa8817ab42f758c988dfd3158f705da770238a88": {
+    "branch": "7.4",
+    "note": "Cherry-pick of the 8.0 backport 6cb6882, with the same code as official bb46b4b except the PHP_LIBXML_IGNORE_DEPRECATIONS_START/END pragmas, which 7.4 does not define and which only suppress compiler warnings. The other differences are context and tests."
+  },
+  "aeaf48ca0bceba42b9595dff30d9e96029c54613": {
+    "branch": "7.4",
+    "note": "Same as the 8.0 backport 62daef7 of official 99a5ad7, adapted to 7.4 (the proc struct copy instead of proc->, php_escape_html_entities_ex() without the quiet argument), so the HTML and XML outputs are escaped. The JSON branch is absent because 7.4 has no status JSON escaping (the bug #64539 fix 5e64ead is 8.1+); FPM is not built on Windows."
+  },
+  "b3758bd21223b97c042cae7bd26a66cde081ea98": {
+    "branch": "7.4",
+    "note": "Every added/removed line of official c283c3a (PHP 8.0.30) outside ext/zend_test is applied verbatim (sanitize/restore of the libxml globals and php_libxml_sanitize_parse_ctxt_options() in dom, simplexml, soap, xml compat, xmlreader and xsl); only the context is 7.4 (PHP_FUNCTION and lowercase method names, warning + RETURN_FALSE instead of ValueError on the paths where the RESTORE calls are added). The test-only zend_test helper is left out here (test.stub.php and test_arginfo.h do not exist in 7.4) and added separately in #21 24e669e."
+  },
+  "b44c4c80d8a76d7df32985e4bbadb12c985d6a22": {
+    "branch": "7.4",
+    "note": "Same unsigned char casts as the official fix a384187 wherever the code exists in 7.4; the quantity parser of Zend/zend_ini.c and main/php_ini_builder.c only exist from 8.2. Remark: the -d value check that php_ini_builder.c centralizes from 8.2 is duplicated in 7.4's CLI, CGI, FPM and phpdbg SAPIs, where isalnum(*val) stays uncast (command-line input only), as do tolower(*s) in the PDO_CASE_LOWER branch of pdo_stmt_describe_columns() and a few 7.4-only tolower() calls in ext/standard/string.c; low impact."
+  },
+  "bbb027263bf9ec3d0ceba01d55307fe728b58f19": {
+    "branch": "7.4",
+    "note": "date_period_reset() matches the official fix 2d86f8c. Remark: in 7.4 the new DATE_CHECK_INITIALIZED check returns from the constructor without restoring the error handling it replaced, so after an uninitialized DateInterval (a developer error that crashed PHP before the fix) warnings keep throwing for the rest of the request; minor."
+  },
+  "bf4a8df2b3972118c87b05450e9062d3926f6be8": {
+    "branch": "7.4",
+    "note": "The header-folding fix matches the official d20b4c9 (zend_bool for bool, zend_string_concat3 replaced by an equivalent allocation). Remark: it also brings the 8.0 transfer-encoding cleanup of bug #80256 (1c157d3), which changes how 7.4 frees the dechunk filter on redirects; upstream code, low risk."
+  },
+  "c812ca1d4d427a9e8eed91fc31f1d061a26f034c": {
+    "branch": "7.4",
+    "note": "Same change as 1ede313, with the same old-code context differences (memcmp method check, php_strtolower, efree(new_path)). It is not a security fix but the prerequisite of dc1f36a (GHSA-fpwc-w8rq-cr92), whose official patch 5af9465 builds on HTTP_WRAPPER_KEEP_METHOD/new_flags. It changes behaviour: 307/308 now resend POST/PATCH bodies, as 8.1+ does."
+  },
+  "cfa5b78b804c6a9cd7de42ec2481e7886a2fa922": {
+    "branch": "7.4",
+    "note": "Test-only, like the 8.0 commit 652cb22. The NULL check added by official 727a4dd is not needed in 7.4, where the int returned by the quoter is already checked at both call sites in pdo_sql_parser.re and in PDO::quote."
+  },
+  "d407d8a8735ebf43bee3e6b49fb013b8aa4b6bfc": {
+    "branch": "7.4",
+    "note": "Same as official cac8f7f, via the 8.0 backport 3615027. strpprintf() replaces ZSTR_INIT_LITERAL() (absent in 7.4), fsock.c differs only in 7.4 context (ZEND_PARSE_PARAMETERS_END_EX), and the tests expect 7.4's lowercase 'unable to connect' warning."
+  },
+  "d732b6d10ec76f7a37b2131c426715612aedfede": {
+    "branch": "7.4",
+    "note": "The pairing with official fe4aba6 is a false match on the subject 'typo' (fe4aba6 edits run-tests.php help text): this commit only fixes a Markdown link (']' to ')') in the list of binary distributions of Remi's README.md. No source code is touched; README.md is only copied as a text file into the zip."
+  },
+  "d8de754b370fd800bf3d86b007c2894e1e394f41": {
+    "branch": "7.4",
+    "note": "Build-only change (Jan Ehrhardt, PR #13): after libzip is found, ext/zip/config.w32 runs 'if (VS_TOOLSET && VCVERS >= 1920) CHECK_LIB(liblzma_a.lib)', which appends liblzma_a.lib to LIBS_ZIP if present in the local deps, because the VS16 libzip_a.lib is built with xz support (official 8.0+ config.w32 requires liblzma_a.lib in its static branch). It cannot affect this vc15 build: cl 19.1x gives VCVERS 1910-1916 so the block is skipped (the workflow asserts 'Visual C++ 2017'), the official 7.4 vc15 deps series ships libzip-1.7.1-1-vc15 and no liblzma, and CHECK_LIB only globs local directories and downloads nothing."
+  },
+  "da1db02333f76c346d1b3c1f9d9cd9a7ba676988": {
+    "branch": "7.4",
+    "note": "Same change as 0bb308e and identical to the 8.0 backport: has_service_id for DNS/URI/SRV-ID SANs blocks the CN fallback. Only zend_bool/0/1 and the missing HAVE_IPV6_SAN block (not in 7.4) differ."
+  },
+  "dbc029915c8487391f3e15bc4b9e9abf80eff55f": {
+    "branch": "7.4",
+    "note": "Same added and removed lines as 78cc82b (size_t prefix_len and the suffix_len + prefix_len <= subject_len bound). Only the context differs: zend_bool return types."
+  },
+  "dc1f36a75a77095799e2434caae2c804bc216c83": {
+    "branch": "7.4",
+    "note": "Identical to official 5af9465 (rewritten strip_header(), HTTP_WRAPPER_STRIP_AUTH propagation, same-origin check, empty header bag handling) except that bool same_origin becomes zend_bool; zend_string_equals_ci() and the redirect_keep_method/new_flags context (from the earlier GH-11274 backport) exist in 7.4. The test changes only adapt to 7.4's server.inc, its HTTP/1.0 default and the lack of str_contains()."
+  },
+  "df2ecf34256c4a301e8959fe2eed0323f8b1b57a": {
+    "branch": "7.4",
+    "note": "All escaping error checks of the official fix 9376aee are present, adapted to the 7.4 API (wrappers, Exception instead of ValueError). Remark: when PQescapeStringConn() fails in php_pgsql_convert(), the escaped string is not released, whereas the official fix frees it: a small request-scoped leak on invalid input, not a security issue."
+  },
+  "e058b01e1bd23421a425cffae9f458b0fa8db222": {
+    "branch": "7.4",
+    "note": "Same fix as official cbc0489 (one extra cipher block reserved for EVP_CIPH_WRAP_MODE before zend_string_alloc()); the only differences are false written as 0 and the omitted cosmetic 0-to-false change in zend_string_release_ex(). In the context, the only difference is that the data/aad parameters are not const in 7.4."
+  },
+  "e8bc357123ea19c4e2390374f088c9d4941f19e6": {
+    "branch": "7.4",
+    "note": "Same as the 8.0 backport of 2f5aa9f, with bool replaced by zend_bool in the two new ps_codec helpers. m.free_result and row_buffer->size exist in 7.4, and the tests are identical."
+  },
+  "f3432d2d2a01132fbe30ba8db0f0c815d53c6f04": {
+    "branch": "7.4",
+    "note": "Same changes as official 0994e2e (strict phar_tar_size() parsing, rejection of GNU long-link entries, filename_len > totalsize check, data skipped for every typeflag that carries data, new TAR_* defines); only bool/true/false become zend_bool/1/0. In 7.4 size is uint32_t and totalsize is size_t, as the new code expects; the other differences in phar_parse_tarfile() are existing 7.4 code unrelated to the fix."
+  },
+  "fb718aa6f2117933566bb7bb2f70b2b0d9a9c08f": {
+    "branch": "7.4",
+    "note": "Identical to official 9382673 (same git patch-id); only the hunk offsets in sapi/cgi/cgi_main.c differ.",
+    "official": "9382673"
+  },
+  "017493f4c530275df5e15f9238606ea4a0c36a20": {
+    "branch": "8.0",
+    "note": "Official fix of CVE-2024-1874 is e3c784f on PHP-8.1 (7ad6ff7, cited in remicollet issue #14, has the same patch-id). The backport has the same ^-escaping and .bat/.cmd/cmd.exe detection, adapted to 8.0's smart_string/char* API: it uses strlen instead of ZSTR_LEN, which is safe because get_valid_arg_string rejects NUL bytes. The three tests are identical.",
+    "official": "e3c784f"
+  },
+  "0d3ccf4cc54d3844bc9d1c8f6bdcd36180752a2c": {
+    "branch": "8.0",
+    "note": "All code hunks are identical to 2f5aa9f: the ps_codec over-read checks, the wireprotocol OK/RSET/field-default/row checks and the result.c free_result change; all tests are identical too. The only differences are context, for example the check in ps_fetch_from_1_to_8_bytes sits after 8.0's local declarations."
+  },
+  "1b443f4b0e3730f65dcbbcf6bbe19063e433f809": {
+    "branch": "8.0",
+    "note": "Same logic as 0bb308e: has_service_id is set for DNS, URI and SRV-ID otherName SANs, and the CN fallback is refused when it is set. It uses zend_bool/0/1 and has no HAVE_IPV6_SAN block, which does not exist in 8.0."
+  },
+  "215c255c8827a52a69f2a9c34b1165d8101c059d": {
+    "branch": "8.0",
+    "note": "All C changes of 114dbb7 are present with the same added lines: bounds-checked net_field_length/_ll and all their callers, the greet/auth/OK/EOF/rset/prepare/change-user/sha256 checks, the ps_codec length checks, and the leak fix in mysqlnd_ps.c prepare_read_eof. Only the old format strings in the removed lines differ. 'Partial' only refers to 14 tests left out at first because 8.0 reports warnings instead of exceptions; they were re-added without XFAIL (3d74056, a126d5b), and c280bab marks the fix as complete in NEWS."
+  },
+  "30de2f8492a06ebcf1659307f1f049e2799c7f21": {
+    "branch": "8.0",
+    "note": "Same unsigned char casts as the official fix a384187 wherever the code exists in 8.0; the quantity parser of Zend/zend_ini.c and main/php_ini_builder.c only exist from 8.2. Remark: the -d value check that php_ini_builder.c centralizes from 8.2 is duplicated in 8.0's CLI, CGI, FPM and phpdbg SAPIs, where isalnum(*val) stays uncast (command-line input only), and a few 8.0-only tolower() calls in ext/standard/string.c stay uncast; low impact."
+  },
+  "36150278addd8686a9899559241296094bd57282": {
+    "branch": "8.0",
+    "note": "Same fix as official cac8f7f: the NUL-byte check in parse_ip_address_ex() and length-aware host:port formatting in fsockopen(). The only code difference is that the error zend_string is built with strpprintf() instead of ZSTR_INIT_LITERAL(), which does not exist in 8.0; the message is the same."
+  },
+  "3f74c8a960c866da1b016bac2fc9e476955fbbc7": {
+    "branch": "8.0",
+    "note": "Same date_period_reset() and constructor change as 2d86f8c. The new DATE_CHECK_INITIALIZED on the interval sits at the top of the object branch because 8.0 lacks the start/end initialisation checks that come before it upstream, and the 8.0 macro throws an Error exactly as in 8.2."
+  },
+  "4353ef288dae98634850bbed1b6699f6ee63bfea": {
+    "branch": "8.0",
+    "note": "Official fix is 4b15f5d (PHP-8.1, CVE-2024-5585). The new GetLongPathNameW/GetFullPathNameW-based is_executed_by_cmd and the three tests are identical; only context lines differ (smart_string, char* command builder).",
+    "official": "4b15f5d"
+  },
+  "4e5d8e83fdb2ffd95d786ae24ae181fc9a221d0e": {
+    "branch": "8.0",
+    "note": "Same change as 1ede313: HTTP_WRAPPER_KEEP_METHOD keeps the method, body and Content-* headers on 307/308. Only the surrounding 8.0 code differs (memcmp method check, php_strtolower, efree(new_path)). It is not a security fix but the base of the next commit eb3554a (GHSA-fpwc-w8rq-cr92, identical to 5af9465), which builds on HTTP_WRAPPER_KEEP_METHOD and new_flags. It does change behaviour: 307/308 now resend POST/PATCH bodies, as 8.1+ does."
+  },
+  "4fec08542748c25573063ffc53ea89cd5de1edf0": {
+    "branch": "8.0",
+    "note": "The http_fopen_wrapper.c changes are identical to d20b4c9 apart from context lines (zend_bool/char* declarations). The commit also replaces the test-only helper ext/openssl/tests/ServerClientTestCase.inc with the upstream PHP-8.1 version that the new tests need; it does not go into the binary."
+  },
+  "52c5762a902e8731b7068ded027fbd780f5a1991": {
+    "branch": "8.0",
+    "note": "Same NUL-byte rejection (string to path ZPP) as official ed70b1e, on the same parameters of inet_pton, ip2long, getservbyname, getservbyport, getprotobyname, dns_check_record, dns_get_record and dns_get_mx (in both dns.c and dns_win32.c). The differences come from 8.0 APIs: Z_PARAM_PATH for the char* name, 'p|s' for the char* rectype, and zend_bool context."
+  },
+  "531196af8ccc43c26ca97aef27b0816e8b4e2f60": {
+    "branch": "8.0",
+    "note": "Same fix as ab048bd, applied to the 8.0 zval/smart_str form of php_pgsql_add_quotes(): it no longer emits the E prefix, and the misleading comment is removed. The PQescapeStringConn() call is only re-wrapped, and the nine add_quotes callers are the same type cases as upstream."
+  },
+  "5d9e54065ed18c51e4f25d8900635f90810c7394": {
+    "branch": "8.0",
+    "note": "Same fix as d9baa9f: a separate extralen count and the quotedlen > ZSTR_MAX_LEN - extralen check. It is adapted to 8.0's int-returning quoter API, using the *quotedlen out-parameter and returning 0 instead of NULL; PDO::quote and the SQL parser both treat 0 as failure. The test is identical."
+  },
+  "62daef7b73108ceda2545862cde0673f252ba2d2": {
+    "branch": "8.0",
+    "note": "Equivalent to official 99a5ad7 for the HTML and XML outputs, which 8.0 covers with a single 'encode' flag: request_uri is now HTML-escaped and query_string gets the corrected ENT_DISALLOWED|ENT_HTML_DOC_XML1|ENT_COMPAT flags. The official encode_json branch is absent because 8.0's status page has no JSON escaping at all (added in 8.1 by the bug #64539 fix 5e64ead), so JSON output is unchanged; FPM is not built on Windows."
+  },
+  "652cb22d27172e8068bc286774fb2b7078427093": {
+    "branch": "8.0",
+    "note": "Official 727a4dd adds a NULL check on the zend_string returned by the quoter in pdo_sql_parser.re. In 8.0 the quoter returns an int that both call sites (and PDO::quote) already check (bork, goto clean_up), so adding only the test is correct."
+  },
+  "6cb68826aaf68ffe8c70c8782450c38970236040": {
+    "branch": "8.0",
+    "note": "Same code changes as official bb46b4b (a libxml2 2.13 compatibility fix, not a security fix) except that the PHP_LIBXML_IGNORE_DEPRECATIONS_START/END pragmas are dropped from php_libxml.h and soap/php_xml.c. 8.0's php_libxml.h does not define those macros and they only silence compiler deprecation warnings; the other differences are context (zend_bool) and test files."
+  },
+  "7633d987cc11ee2601223e73cfdb8b31fed5980f": {
+    "branch": "8.0",
+    "note": "All escaping error checks of the official fix 9376aee are present, adapted to the 8.0 API. Remark: when PQescapeStringConn() fails in php_pgsql_convert(), the escaped string is not released, whereas the official fix frees it: a small request-scoped leak on invalid input, not a security issue."
+  },
+  "8d130e16fbfda7d154fedfa0f1ff1d5ad5e26815": {
+    "branch": "8.0",
+    "note": "Follow-up to #21 bc1f192, the verbatim cherry-pick of official 426a6d4 (GHSA-c5f2-jwm7-mmq2): in 8.0 transport_string is a char* from estrndup()/spprintf() (it is a zend_string only from 8.1), so the new CR/LF error path must free it with efree() like the rest of php_stream_url_wrap_http_ex(), not zend_string_release(). The commit changes only that one line of ext/standard/http_fopen_wrapper.c."
+  },
+  "9f95e17cc0a9a79da82157e34e3effe1bc395037": {
+    "branch": "8.0",
+    "note": "Official fix is 9382673 (PHP-8.1, CVE-2024-4577). The backport has the same git patch-id: the best-fit hyphen check in cgi_main.c and the test are identical.",
+    "official": "9382673"
+  },
+  "abf5a10618537332f63194f2cf72b019c592029c": {
+    "branch": "8.0",
+    "note": "Same changes as official 3f40b65 (via Remi's 8.1 cherry-pick 4b0dd46): length-based memcpy instead of strcpy/strncat/strncpy in preprocess(), the ttParamMark look-ahead, NUL-safe quote counting and doubling in the quoter, and the real statement length passed to isc_dsql_prepare(). Differences only follow the 8.0 PDO driver API (preprocess() takes const char*/int length instead of a zend_string, the quoter keeps its char**/size_t* out-parameters, zend_bool instead of bool) plus a leftover '/* copy the remainder */' comment."
+  },
+  "b4f73be75dbdde970a18cc7a636898b10400fb3f": {
+    "branch": "8.0",
+    "note": "Same fix as 69c5f68: qcount becomes size_t and the unquotedlen + 2 > ZSTR_MAX_LEN - qcount check is added. It is adapted to 8.0's char*/int quoter API and returns 0 instead of NULL."
+  },
+  "d5f09f67ce5082827640eb132978b4975219cb49": {
+    "branch": "8.0",
+    "note": "Same patch as the official end-of-life fix 82f8f31: 14 of the 17 files end up byte-identical to it. main/SAPI.c, main/php_variables.c and main/rfc1867.c get the same hunks and differ only in surrounding lines changed by earlier backports (GHSA-m8rr ctype casts, __Host-/__Secure- check, multipart boundary limit)."
+  },
+  "e1845be6ed76bea7b120330ec316cf470e906dfe": {
+    "branch": "8.0",
+    "note": "Same added and removed lines as 78cc82b (size_t prefix_len and the suffix_len + prefix_len <= subject_len bound). Only the context differs: zend_bool instead of bool return types."
+  },
+  "ed665eb1903737d2b52b27368b155f6208604ed9": {
+    "branch": "8.0",
+    "note": "The official fix c5f28c7 patches php_read_stream_all_chunks(), which 8.0 lacked; the backport adds that helper as it is in 8.1 (from the bug #75708 fix 52aa0d9), with the fix applied. Remark: this also brings #75708's change to how getimagesize() reads APPn segments on filtered streams; upstream code, low risk."
   },
   "07e5a9263314fd9a2a4479661353704e00dd8d0c": {
     "branch": "8.1",
-    "note": "Same unsigned char casts as the official fix a384187. Not applied: the quantity parser of Zend/zend_ini.c and main/php_ini_builder.c, which do not exist in 8.1. In ext/filter/logical_filters.c and ext/pcre/php_pcre.c the cast is applied to the 8.1 form of the line, which lacks conditions added in 8.2."
+    "note": "Same unsigned char casts as the official fix a384187 wherever the code exists in 8.1; the quantity parser of Zend/zend_ini.c and main/php_ini_builder.c only exist from 8.2. Remark: the -d value check that php_ini_builder.c centralizes from 8.2 is duplicated in 8.1's sapi/cli/php_cli.c, sapi/cgi/cgi_main.c, sapi/fpm/fpm/fpm_main.c and sapi/phpdbg/phpdbg.c, where isalnum(*val) stays uncast; command-line input only, low impact."
   },
   "1e06d14cdc77d28b88d2daa99bdfdd4dfaae831b": {
     "branch": "8.1",
     "note": "Same change as the official 8.1 fix 1d7dec1 (PHP-8.1-CVE-2026-109618-109619); in main/rfc1867.c the removed lines already carry the casts of GHSA-m8rr-4c36-8gq4 (07e5a92)."
+  },
+  "5dd8dd8493d49bb6fcd810a6e9d2ffb6fdc15714": {
+    "branch": "8.1",
+    "note": "Same change as the official fix db2a7f9; only the surrounding context differs (8.1 still releases fn_name in these error paths)."
   }
 }

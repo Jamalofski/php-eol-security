@@ -22,25 +22,30 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
   command line. Take x64 or x86 to match your server. The debug, devel and test packs are
   only for debugging, building extensions or running the test suite.
 
-Patch levels, each fixing CVE-2026-109618 and CVE-2026-109619. Binaries are
+Current patch levels. Each one carries every php-src security fix published for the
+branch since its end of life, as listed in [PATCHES.md](PATCHES.md). Binaries are
 attached to the [releases](https://github.com/Jamalofski/php-eol-security/releases).
 
 | Branch | Version | Toolchain |
 |---|---|---|
-| 8.1 | **PHP 8.1.34 Patch Level 1** (`8.1.34-pl1`) | `vs16` (MSVC v142, Visual C++ 2019) |
-| 8.0 | **PHP 8.0.30 Patch Level 1** (`8.0.30-pl1`) | `vs16` (MSVC v142, Visual C++ 2019) |
-| 7.4 | **PHP 7.4.33 Patch Level 1** (`7.4.33-pl1`) | `vc15` (MSVC v141, Visual C++ 2017) |
+| 8.1 | **PHP 8.1.34 Patch Level 2** (`8.1.34-pl2`) | `vs16` (MSVC v142, Visual C++ 2019) |
+| 8.0 | **PHP 8.0.30 Patch Level 2** (`8.0.30-pl2`) | `vs16` (MSVC v142, Visual C++ 2019) |
+| 7.4 | **PHP 7.4.33 Patch Level 2** (`7.4.33-pl2`) | `vc15` (MSVC v141, Visual C++ 2017) |
+
+Patch level 1 carried only the fix for CVE-2026-109618 and CVE-2026-109619 that the PHP
+team published for these branches.
 
 ## How it is built
 
 | | |
 |---|---|
-| Sources | the last official release of the branch plus the fixes listed in [PATCHES.md](PATCHES.md), pinned per branch in [versions.json](versions.json); the only change made here is the version string |
+| Sources | the last official release of the branch plus the official php-src security fixes published since, as backported by Remi Collet in [remicollet/php-src-security](https://github.com/remicollet/php-src-security) and checked commit by commit against php-src (see below); pinned per branch in [versions.json](versions.json). The only change made here is the version string |
 | Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7.4 has no such entry) |
 | Toolchain | the one of the official builds of the branch (table above), on `windows-2022` |
 | Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for 7.4, the workflow adds back OCI8 and PDO_OCI, which the 7.4 releases shipped and the builder no longer enables |
 | Oracle SDK | OCI8 and PDO_OCI are built against the current Oracle Instant Client SDK, as the official builder does |
 | Dependencies | official packages from downloads.php.net for the branch |
+| SBOM | each binary zip comes with its SBOM, in CycloneDX (`.cdx.json`) and SPDX (`.spdx.json`), produced by the official builder (from patch level 2) |
 | Variants | x64 / x86, TS / NTS |
 
 ABI and CRT are those of the official builds of the branch: existing extension
@@ -49,10 +54,28 @@ DLLs load as before.
 Everything is in [`.github/workflows/build.yml`](.github/workflows/build.yml). Each
 release links the run that produced it; GitHub keeps run logs for 90 days.
 
+## Verification of the sources
+
+Before every build, [`verify_backports.py`](.github/scripts/verify_backports.py) checks
+that the pinned sources are the official release plus official php-src commits, and the
+build stops otherwise:
+
+- the base commit must have the tree of the official release tag;
+- every later commit is compared, with `git patch-id`, to the php/php-src commit it was
+  taken from (its "cherry picked from commit" line, or the same author and subject);
+- a commit passes when it is identical to it; when it differs only in files that are not
+  part of the binaries (NEWS, tests); or when it adds and removes the same lines in the
+  same functions, the older code around the change being the only difference;
+- any other commit, adapted to the older branch or without an official counterpart, needs
+  a review recorded in [`verification/reviews.json`](verification/reviews.json).
+
+The reports in [`verification/`](verification/) list every commit with its official
+counterpart and result, and show what each reviewed commit changes.
+
 ## Verify
 
 ```
-php -v                                # PHP 8.1.34-pl1 ...
+php -v                                # PHP 8.1.34-pl2 ...
 php -i | findstr "Build Provider"     # Jamal TANTAOUI (unofficial EOL security build) ... (8.0+)
 ```
 
@@ -61,16 +84,17 @@ signed build provenance attestation, which ties it to the workflow run and the
 commit that built it:
 
 ```
-gh attestation verify php-8.1.34-pl1-nts-Win32-vs16-x64.zip --repo Jamalofski/php-eol-security
+gh attestation verify php-8.1.34-pl2-nts-Win32-vs16-x64.zip --repo Jamalofski/php-eol-security
 ```
 
 ## Upstream watch
 
-Every Monday, [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) checks
-php-src and opens an issue labelled `upstream-watch` when:
+Every Monday, [`watch-upstream.yml`](.github/workflows/watch-upstream.yml) opens an
+issue labelled `upstream-watch` when:
 
-- the branch a patch level is built from, or its base branch `PHP-x.y`, gets new commits;
-- a new `PHP-x.y-*` fix branch appears for a branch built here;
+- the backport branch a patch level is built from gets new commits;
+- the official `PHP-x.y` branch, or an official `PHP-x.y-*` fix branch, gets new commits,
+  or a new fix branch appears;
 - php-src publishes new security advisories.
 
 ## Limits

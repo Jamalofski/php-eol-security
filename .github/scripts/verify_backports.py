@@ -10,9 +10,12 @@ For each branch of versions.json built from a repository other than php/php-src:
 Official counterparts are looked up on the official branches of the same version
 (PHP-x.y and the PHP-x.y-* fix branches) first, then on the supported branches.
 
-A commit passes when it is identical to its official counterpart, or when it differs,
-or has no counterpart, only in files that do not go into the binaries: NEWS, tests,
-README.md, .github. Any other commit must be reviewed in verification/reviews.json.
+A commit passes when it is identical to its official counterpart; when it differs, or
+has no counterpart, only in files that do not go into the binaries (NEWS, tests,
+README.md, .github); or when it adds and removes the same lines as its counterpart, in
+hunks of the same functions, so that only the surrounding context differs (the older
+branch's code around the change). Any other commit must be reviewed in
+verification/reviews.json.
 Writes verification/<branch>.md and exits 1 when a commit is not reviewed.
 
 Usage: verify_backports.py [branch ...]   (default: every branch of versions.json)
@@ -95,6 +98,19 @@ def changed_lines(lines):
     return pick('+'), pick('-')
 
 
+def hunk_functions(lines):
+    """Function names git gives in the hunk headers of a file's patch."""
+    return [l for l in lines if l.startswith('@@')]
+
+
+def same_changes(mine, theirs):
+    """True when, in every file that goes into the binaries, the backport adds and removes the
+    same lines as the official patch, in hunks of the same functions: only the context differs."""
+    paths = {p for p in set(mine) | set(theirs) if not outside_binaries(p)}
+    return all(p in mine and p in theirs and changed_lines(mine[p]) == changed_lines(theirs[p])
+               and hunk_functions(mine[p]) == hunk_functions(theirs[p]) for p in paths)
+
+
 def adaptation_summary(mine, theirs):
     """What an adapted backport changed compared with the official patch, in files that go into the binaries."""
     notes = []
@@ -136,10 +152,12 @@ def official_branch_commits(minor, tag):
     return index
 
 
-def official_counterpart(commit, own_patch_id, branch_index):
-    """php/php-src commit this one was taken from, preferring one with the same patch id."""
+def official_counterpart(commit, own_patch_id, branch_index, known=None):
+    """php/php-src commit this one was taken from, preferring one with the same patch id.
+    known: the official commit recorded by a review, for backports that do not name it."""
     message = commit['commit']['message']
-    candidates = list(branch_index.get(message.splitlines()[0], []))
+    candidates = [known] if known else []
+    candidates += branch_index.get(message.splitlines()[0], [])
     candidates += CHERRY_PICK.findall(message)
     if not candidates:
         subject = message.splitlines()[0].replace('"', ' ')
@@ -176,7 +194,8 @@ def verify(minor, config, reviews):
         own = patch(repo, sha)
         own_id = patch_id(own)
         mine = files(own)
-        official, official_text = official_counterpart(commit, own_id, branch_index)
+        official, official_text = official_counterpart(commit, own_id, branch_index,
+                                                       reviews.get(sha, {}).get('official'))
         if official is None:
             if all(outside_binaries(p) for p in mine):
                 result = 'no official commit, NEWS/tests only'
@@ -191,6 +210,8 @@ def verify(minor, config, reviews):
             differing = sorted(p for p in set(mine) | set(theirs) if mine.get(p) != theirs.get(p))
             if all(outside_binaries(p) for p in differing):
                 result = 'identical code, NEWS/tests differ'
+            elif same_changes(mine, theirs):
+                result = 'same changes, context differs'
             else:
                 result = 'adapted'
                 diff = [f'# {adaptation_summary(mine, theirs)}']
@@ -203,7 +224,9 @@ def verify(minor, config, reviews):
         review = reviews.get(sha, {}).get('note', '')
         if result in ('adapted', 'no official commit') and not review:
             unreviewed.append(sha)
-        advisories = sorted(set(ADVISORY.findall(commit['commit']['message'])))
+        # Advisory ids from the backport's message and from the official commit's
+        official_message = official_text.split('\n---\n', 1)[0] if official_text else ''
+        advisories = sorted(set(ADVISORY.findall(commit['commit']['message'] + official_message)))
         rows.append(f"| {number} | [{sha[:7]}](https://github.com/{repo}/commit/{sha}) "
                     f"| {f'[{official[:7]}](https://github.com/{OFFICIAL}/commit/{official})' if official else '-'} "
                     f"| {commit['commit']['message'].splitlines()[0].replace('|', chr(92) + '|')} "

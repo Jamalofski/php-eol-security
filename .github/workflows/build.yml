@@ -258,7 +258,7 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: |
-          sha256sum *.zip | tee SHA256SUMS
+          sha256sum *.zip *.json | tee SHA256SUMS
           cat SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload checksums
@@ -294,10 +294,11 @@ jobs:
           - Fixes included: [PATCHES.md](${REPO_URL}/blob/${GITHUB_SHA}/PATCHES.md)
           - Built and tested by [run ${GITHUB_RUN_ID}](${REPO_URL}/actions/runs/${GITHUB_RUN_ID}) (GitHub keeps run logs for 90 days)
           - Checksums: \`SHA256SUMS\`
+          - SBOM: CycloneDX (\`.cdx.json\`) and SPDX (\`.spdx.json\`) files next to each binary zip
           - Provenance: \`gh attestation verify ${NTS_ZIP} --repo ${GITHUB_REPOSITORY}\`
           EOF
           cat notes.md
-          gh release create "php-${VERSION}" dist/*.zip dist/SHA256SUMS \
+          gh release create "php-${VERSION}" dist/*.zip dist/*.json dist/SHA256SUMS \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest="$LATEST" \
             --title "PHP ${BASE_VERSION} Patch Level ${LEVEL} (${VERSION}) — unofficial EOL security build" \
             --notes-file notes.md
