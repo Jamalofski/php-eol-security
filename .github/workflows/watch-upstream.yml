@@ -23,8 +23,8 @@ jobs:
       - name: Check php-src
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          # Advisories published up to then are known: the two fixed by pl1 and
-          # the earlier ones, set aside for later backports
+          # Advisories published up to then are known: patch level 2 carries their
+          # backports (see PATCHES.md)
           WATCH_SINCE: '2026-10-21T13:35:00Z'
           NOTIFY: Jamalofski
         run: python3 .github/scripts/watch_upstream.py
