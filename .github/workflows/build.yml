@@ -255,6 +255,12 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Only what users download: the binary zips, their devel packs and CycloneDX SBOMs.
+      # The debug and test packs and the SPDX copy of each SBOM stay out of the release.
+      - name: Drop unpublished files
+        working-directory: dist
+        run: rm -fv php-debug-pack-*.zip php-test-pack-*.zip *.spdx.json
+
       - name: Checksums
         working-directory: dist
         run: |
@@ -294,7 +300,8 @@ jobs:
           - Fixes included: [PATCHES.md](${REPO_URL}/blob/${GITHUB_SHA}/PATCHES.md)
           - Built and tested by [run ${GITHUB_RUN_ID}](${REPO_URL}/actions/runs/${GITHUB_RUN_ID}) (GitHub keeps run logs for 90 days)
           - Checksums: \`SHA256SUMS\`
-          - SBOM: CycloneDX (\`.cdx.json\`) and SPDX (\`.spdx.json\`) files next to each binary zip
+          - SBOM: CycloneDX (\`.cdx.json\`) file next to each binary zip
+          - Devel packs (\`php-devel-pack-…\`) for building extensions
           - Provenance: \`gh attestation verify ${NTS_ZIP} --repo ${GITHUB_REPOSITORY}\`
           EOF
           cat notes.md

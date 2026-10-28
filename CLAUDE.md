@@ -24,7 +24,8 @@ Every commit of those branches is verified against php/php-src before each build
 4. Update `PATCHES.md` (fixes from the NEWS of the branch, with their commits) and the table
    of `README.md`.
 5. Run a validation build (`release=false`), then the release on Jamal's go. Check each
-   release: assets against `SHA256SUMS`, one attestation per zip, SBOM files.
+   release: assets against `SHA256SUMS`, one attestation per zip, one CycloneDX SBOM per
+   binary zip, no debug or test pack.
 
 Published binaries must keep their provenance attestations, checksums, SBOM and immutable
 releases; actions stay pinned by commit SHA.

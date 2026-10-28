@@ -19,8 +19,9 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
   (`php-8.1.34-pl1-Win32-vs16-x64.zip`, `php-8.1.34-pl1-nts-Win32-vs16-x64.zip`…).
 - Which zip: Thread Safe (`php-<version>-Win32-…`) for Apache with mod_php, as only it
   contains the Apache module; NTS (`php-<version>-nts-Win32-…`) for IIS, nginx or the
-  command line. Take x64 or x86 to match your server. The debug, devel and test packs are
-  only for debugging, building extensions or running the test suite.
+  command line. Take x64 or x86 to match your server. The devel packs are only for
+  building extensions. From patch level 3, releases no longer carry the debug and test
+  packs, which almost nobody downloaded.
 
 Current patch levels. Each one carries the php-src security fixes published since the
 end of life of the branch, as backported by Remi Collet and listed in
@@ -46,7 +47,7 @@ team published for these branches.
 | Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for 7.4, the workflow adds back OCI8 and PDO_OCI, which the 7.4 releases shipped and the builder no longer enables |
 | Oracle SDK | OCI8 and PDO_OCI are built against the current Oracle Instant Client SDK, as the official builder does |
 | Dependencies | official packages from downloads.php.net for the branch |
-| SBOM | each binary zip comes with its SBOM, in CycloneDX (`.cdx.json`) and SPDX (`.spdx.json`), produced by the official builder (from patch level 2) |
+| SBOM | each binary zip comes with its CycloneDX SBOM (`.cdx.json`), produced by the official builder (from patch level 2; patch level 2 also had an SPDX copy) |
 | Variants | x64 / x86, TS / NTS |
 
 ABI and CRT are those of the official builds of the branch: existing extension
