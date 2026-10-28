@@ -64,6 +64,14 @@
       "--with-pdo-oci=..\\..\\..\\..\\instantclient\\sdk,shared",
       "--with-oci8-12c=..\\..\\..\\..\\instantclient\\sdk,shared"
     ],
+    "deps_overrides": {
+      "openssl": "1.1.1s-74",
+      "libcurl": "7.70.0-6",
+      "zlib": "1.2.12",
+      "libxml2": "2.9.10-2",
+      "libssh2": "1.9.0-1",
+      "nghttp2": "1.40.0"
+    },
     "upstream_refs": {
       "PHP-7.3": "7d92153182f86722f83963d6fb054609c40bed8d"
     }
@@ -87,6 +95,14 @@
       "--with-pdo-oci=..\\..\\..\\..\\instantclient\\sdk,shared",
       "--with-oci8-12c=..\\..\\..\\..\\instantclient\\sdk,shared"
     ],
+    "deps_overrides": {
+      "openssl": "1.1.1s-74",
+      "libcurl": "7.70.0-6",
+      "zlib": "1.2.12",
+      "libxml2": "2.9.10-2",
+      "libssh2": "1.9.0-1",
+      "nghttp2": "1.40.0"
+    },
     "upstream_refs": {
       "PHP-7.2": "2d3d72412a6734e19a38ed10f385227a6238e4a6"
     }

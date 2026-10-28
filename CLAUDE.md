@@ -27,5 +27,9 @@ Every commit of those branches is verified against php/php-src before each build
    release: assets against `SHA256SUMS`, one attestation per zip, one CycloneDX SBOM per
    binary zip, no debug or test pack.
 
+7.3 and 7.2 take the vc15 packages of 7.4 for the libraries listed in `deps_overrides`
+(versions.json): their own dependency series stopped in 2020-2021. The build checks the
+library versions the binaries load.
+
 Published binaries must keep their provenance attestations, checksums, SBOM and immutable
 releases; actions stay pinned by commit SHA.

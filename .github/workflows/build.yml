@@ -33,6 +33,7 @@ jobs:
       compiler: ${{ steps.cfg.outputs.compiler }}
       build_provider: ${{ steps.cfg.outputs.build_provider }}
       extra_configure: ${{ steps.cfg.outputs.extra_configure }}
+      deps_overrides: ${{ steps.cfg.outputs.deps_overrides }}
       latest: ${{ steps.cfg.outputs.latest }}
     steps:
       - name: Checkout
@@ -54,6 +55,7 @@ jobs:
             echo "compiler=$(jq -r .compiler cfg.json)"
             echo "build_provider=$(jq -r .build_provider cfg.json)"
             echo "extra_configure=$(jq -c '.extra_configure // []' cfg.json)"
+            echo "deps_overrides=$(jq -c '.deps_overrides // {}' cfg.json)"
             # Only the highest branch gets the "Latest" badge on GitHub
             echo "latest=$(jq -r --arg b "$BRANCH" 'keys | map(split(".") | map(tonumber)) | max | map(tostring) | join(".") == $b' versions.json)"
           } >> "$GITHUB_OUTPUT"
@@ -132,6 +134,22 @@ jobs:
           Set-Content $bat $content.Replace(' %*', " $options %*") -NoNewline
           Get-Content $bat
 
+      - name: Dependency overrides
+        if: needs.config.outputs.deps_overrides != '{}'
+        shell: pwsh
+        env:
+          DEPS_OVERRIDES: ${{ needs.config.outputs.deps_overrides }}
+        run: |
+          # Newer packages than the dependency series of the branch (for 7.3 and 7.2,
+          # the vc15 packages of 7.4), through the builder's own deps-overrides.json
+          $path = 'builder/php/BuildPhp/config/deps-overrides.json'
+          $config = Get-Content $path -Raw | ConvertFrom-Json
+          if ($config.PSObject.Properties['${{ inputs.branch }}']) { throw "${path} already has an entry for ${{ inputs.branch }}" }
+          $libraries = $env:DEPS_OVERRIDES | ConvertFrom-Json
+          $config | Add-Member -NotePropertyName '${{ inputs.branch }}' -NotePropertyValue ([pscustomobject]@{ maxVersion = $env:BASE_VERSION; libraries = $libraries })
+          $config | ConvertTo-Json -Depth 5 | Set-Content $path
+          Get-Content $path
+
       - name: Set version
         shell: pwsh
         working-directory: ${{ env.SRC_DIR }}
@@ -198,6 +216,7 @@ jobs:
           COMPILER: ${{ needs.config.outputs.compiler }}
           CHECK_PROVIDER: ${{ needs.config.outputs.build_provider }}
           EXTRA_CONFIGURE: ${{ needs.config.outputs.extra_configure }}
+          DEPS_OVERRIDES: ${{ needs.config.outputs.deps_overrides }}
         run: |
           Get-ChildItem | Format-Table Name, Length
           $zip = Get-ChildItem "php-$env:BASE_VERSION*.zip" | Select-Object -First 1
@@ -227,6 +246,25 @@ jobs:
               if (-not (Test-Path $dll)) { throw "$(Split-Path $dll -Leaf) is missing" }
               Write-Host "$(Split-Path $dll -Leaf) shipped"
             }
+          }
+
+          # Overridden libraries are the ones the binaries use (nghttp2 has no probe)
+          $probes = @{
+            openssl = 'OPENSSL_VERSION_TEXT'
+            libcurl = "curl_version()['version']"
+            zlib = 'ZLIB_VERSION'
+            libxml2 = 'LIBXML_DOTTED_VERSION'
+            libssh2 = "curl_version()['libssh_version']"
+          }
+          $probe = Join-Path $env:RUNNER_TEMP probe.php
+          foreach ($library in ($env:DEPS_OVERRIDES | ConvertFrom-Json).PSObject.Properties) {
+            if (-not $probes.ContainsKey($library.Name)) { Write-Host "$($library.Name): no version probe"; continue }
+            # Package revision aside: 1.1.1s-74 is OpenSSL 1.1.1s
+            $version = $library.Value -replace '-\d+$', ''
+            Set-Content $probe "<?php echo $($probes[$library.Name]);"
+            $out = (& $php -n -d "extension=$dir\ext\php_curl.dll" -d "extension=$dir\ext\php_openssl.dll" $probe 2>&1 | Out-String).Trim()
+            Write-Host "$($library.Name): $out"
+            if (-not $out.Contains($version)) { throw "$($library.Name) is not $version" }
           }
 
           # Every shipped extension loads without any startup warning. Same exclusions
