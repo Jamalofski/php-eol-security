@@ -307,5 +307,5 @@ jobs:
           cat notes.md
           gh release create "php-${VERSION}" dist/*.zip dist/*.json dist/SHA256SUMS \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest="$LATEST" \
-            --title "PHP ${BASE_VERSION} Patch Level ${LEVEL} (${VERSION}) — unofficial EOL security build" \
+            --title "PHP ${VERSION}" \
             --notes-file notes.md
