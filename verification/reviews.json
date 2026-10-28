@@ -281,5 +281,161 @@
   "5dd8dd8493d49bb6fcd810a6e9d2ffb6fdc15714": {
     "branch": "8.1",
     "note": "Same change as the official fix db2a7f9; only the surrounding context differs (8.1 still releases fn_name in these error paths)."
+  },
+  "6f979c832c861fb32e2dbad5e0cc29edcee7c500": {
+    "branch": "7.3",
+    "note": "Same fix as the official 7.4 one (PHP 7.4.30): frees the converted parameters up to i instead of num_params; 7.3 keeps the zval conversion with its warning and RETURN_FALSE."
+  },
+  "9433de72e291db518357fe55531cc15432d43ec4": {
+    "branch": "7.3",
+    "note": "Only the const qualifier of a removed line differs; same added lines as the official fix."
+  },
+  "de4517ad607df8d4cb3735228b39e4a48f95556c": {
+    "branch": "7.3",
+    "note": "Same changes; the official commit also carries an unrelated php_version.h hunk, rightly not applied."
+  },
+  "4fb61f06b1aff89a4d7e548c37ffa5bf573270c3": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport b3758bd (reviewed); only the context differs."
+  },
+  "747100905eceffb1f67096b437001e42900eb6bb": {
+    "branch": "7.3",
+    "note": "Same check in the bcrypt branch of password_hash(), which parses its options inline in 7.3; raises a warning and returns NULL, as 7.3 does for its other bcrypt errors, instead of a ValueError."
+  },
+  "76362f9526afbd5565003d981f9507aaf62337f2": {
+    "branch": "7.3",
+    "note": "Same changes, adapted to the two-argument _php_filter_validate_ipv6() of 7.3, whose callers never use the ip[8] output."
+  },
+  "3ee3a1f5c72921e99da8a8da096c0d11f89735d1": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport fb718aa (reviewed); only the context differs."
+  },
+  "37056ad634d9c44bac0d6c8e730eafaec1344840": {
+    "branch": "7.3",
+    "note": "Adds ZSTR_MAX_OVERHEAD and ZSTR_MAX_LEN with the definitions of PHP 7.4, needed by the overflow checks of the bailout fix."
+  },
+  "dcb89ed9d0217510f3906ce0c517f704e6bd80dc": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport 494de65 (reviewed); only the context differs."
+  },
+  "9822bfae85607dffc13848d40a2340daf090f39b": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport 50e9e72 (reviewed); only the context differs."
+  },
+  "bb1dd9865d8163ee9f0449994cf086852ea1014e": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport e8bc357 (reviewed); only the context differs."
+  },
+  "d8f3aac707341374fa8bffc90b76c0c8b0f6d1b0": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport 84b83e2 (reviewed); only the context differs."
+  },
+  "8b1746466f9fcf248f9879fabfa356106d365da0": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport aeaf48c (reviewed); only the context differs."
+  },
+  "72c3531150e451cdfca49b16879257c6de6e2880": {
+    "branch": "7.3",
+    "note": "Same fix: php_pgsql_add_quotes() (smart_str in 7.3) no longer prefixes E. 7.3 does not check the PQescapeStringConn error, which the official code already did before the fix; unchanged behaviour."
+  },
+  "1d903242af0af99076e34d0d4620f4747638d387": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport 9b8abad (reviewed); only the context differs."
+  },
+  "962194040ebdb403b47f80b04ccf3c55df8f3ff1": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the reviewed 7.4 backport 802c210, apart from the 7.3 code around them; the concat overflow checks are added (7.3 had none) to the same 17 + 17 handler specializations as in 7.4. The executor reset part follows in f6ecc88."
+  },
+  "f6ecc88cd106c63ddd3b4cc21ef46151f6bc443f": {
+    "branch": "7.3",
+    "note": "Second part of the bailout fix: the handler and error state reset of the 7.4 backport 802c210, as an if (fast_shutdown) block instead of an else branch; equivalent."
+  },
+  "175ca685e10678e3b4f98a84f308946ca857e339": {
+    "branch": "7.2",
+    "note": "Reverts the official 7.2.35-dev bump (NEWS, configure.ac, php_version.h); the build sets the version anyway."
+  },
+  "356f7008f36da60ec9794d48c55d117f1dd31903": {
+    "branch": "7.2",
+    "note": "Moves the bug #77423 userinfo check from parse_url() to FILTER_VALIDATE_URL, as php-src did in 7.3 and later; char* and strlen() instead of zend_string, safe as parse_url() replaces control characters, NUL included, in the user part."
+  },
+  "310b17f5c8938389b1dbd7d8ff5a8144bfb9a351": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport 6f979c8: Same fix as the official 7.4 one (PHP 7.4.30): frees the converted parameters up to i instead of num_params; 7.3 keeps the zval conversion with its warning and RETURN_FALSE."
+  },
+  "1560224d3a26574f0195af3853e4d7e050b0b06f": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport 9433de7: Only the const qualifier of a removed line differs; same added lines as the official fix."
+  },
+  "2bdc26af43cdd4376bf8e0fdf532bb12dd35d3dd": {
+    "branch": "7.2",
+    "note": "Same added and removed lines; only the hunk header (int fname_len in 7.2) differs."
+  },
+  "4b1f3b84336a26db9649c5175e29984fa1b54950": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport de4517a: Same changes; the official commit also carries an unrelated php_version.h hunk, rightly not applied."
+  },
+  "d7de6908dfc8774e86a54100ad4e2ee810426001": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport b3758bd (reviewed); only the context differs."
+  },
+  "3535016313ece1e12ffd5d9fc2f39478941be3d8": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport 24e669e (reviewed); only the context differs."
+  },
+  "26d70866843598f4a2ed94b01999b38e1d7c0e97": {
+    "branch": "7.2",
+    "note": "Tests, and zend_test code compiled only outside Windows; nothing that goes into the binaries."
+  },
+  "c213de619a532d35e8f7abe4a245433dbf21c960": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport a6c1c62 (reviewed); only the context differs."
+  },
+  "d22d9ebb29dce86edd622205dd1196a2796c08c7": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport 7471009: Same check in the bcrypt branch of password_hash(), which parses its options inline in 7.3; raises a warning and returns NULL, as 7.3 does for its other bcrypt errors, instead of a ValueError."
+  },
+  "87a7b8dab75e221a1fcd74cf34dc650f7253c12c": {
+    "branch": "7.2",
+    "note": "Same changes as the 7.3 backport 76362f9, adapted to the char* fields of php_url in 7.2."
+  },
+  "669f8524ad99a6b9220ea2cee1a07a9de3964776": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport fb718aa (reviewed); only the context differs."
+  },
+  "ff868946218d6d1661a0c35757e2058cb3ed23ec": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport 37056ad: Adds ZSTR_MAX_OVERHEAD and ZSTR_MAX_LEN with the definitions of PHP 7.4, needed by the overflow checks of the bailout fix."
+  },
+  "11787051a17d2fcea427cd66c3fcc5e99ab94a03": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport 494de65 (reviewed); only the context differs."
+  },
+  "f8756a7a1d185727a5bfd212b1442a6d153a9471": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport 50e9e72 (reviewed); only the context differs."
+  },
+  "190eefda704550c49db7b9ec2b60369f1a4db1a8": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport 84b83e2 (reviewed); only the context differs."
+  },
+  "b7702525bc4a540eb36f392a13461971a1bac31a": {
+    "branch": "7.2",
+    "note": "Same added and removed lines; only the context (metaphone() returns int in 7.2) differs."
+  },
+  "8e0efa0f20484c8bbfdb8671d61b232b70e2bd0a": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.4 backport aeaf48c (reviewed); only the context differs."
+  },
+  "a33d0c050d938889930c6a6a403d0a563c968301": {
+    "branch": "7.2",
+    "note": "Same added and removed lines as the 7.3 backport 72c3531: Same fix: php_pgsql_add_quotes() (smart_str in 7.3) no longer prefixes E. 7.3 does not check the PQescapeStringConn error, which the official code already did before the fix; unchanged behaviour."
+  },
+  "f8a8d8e2d7bb929c83b2fe5558aac07cd1de45bb": {
+    "branch": "7.2",
+    "note": "Same as the 7.3 backport 9621940, plus _zend_new_array_0(), which 7.2 lacks; the zend_types.h change of 7.4 is not needed, as HT_HASH_RESET is a plain memset in 7.2. _zend_new_array_0() calls _zend_hash_init() without ZEND_FILE_LINE_CC, which only breaks debug builds. Concat checks cover the 18 + 18 specializations of 7.2."
+  },
+  "75342f16cdb830f0de70a5e528dcd04565955a92": {
+    "branch": "7.2",
+    "note": "Same as the 7.3 commit f6ecc88."
   }
 }

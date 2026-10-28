@@ -1,7 +1,7 @@
 # php-eol-security
 
-Unofficial Windows builds of end-of-life PHP (7.4, 8.0, 8.1), built from Remi Collet's
-backport branches (remicollet/php-src-security) with the official php-windows-builder.
+Unofficial Windows builds of end-of-life PHP (7.2, 7.3, 7.4, 8.0, 8.1), built from Remi
+Collet's backport branches (remicollet/php-src-security) with the official php-windows-builder.
 Every commit of those branches is verified against php/php-src before each build.
 
 ## Git, CI and delivery

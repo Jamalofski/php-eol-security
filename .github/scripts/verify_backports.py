@@ -2,7 +2,8 @@
 """Verify that a patch level is built only from php/php-src code.
 
 For each branch of versions.json built from a repository other than php/php-src:
-- the base commit must have the tree of the official release tag (README.md aside);
+- the base commit must have the tree of the official release tag (README.md aside, and the
+  files of base_exceptions in versions.json, for a branch based on its "-dev" version bump);
 - every commit between the base and the pinned commit must come from php/php-src.
   Its official counterpart is found through the "cherry picked from commit" trailer,
   or else by author and subject, and the two patches are compared with git patch-id.
@@ -181,7 +182,7 @@ def verify(minor, config, reviews):
     tag = config['base_tag']
     base_files, tag_files = tree(repo, base), tree(OFFICIAL, tag)
     base_diff = sorted(p for p in set(base_files) | set(tag_files) if base_files.get(p) != tag_files.get(p))
-    base_ok = set(base_diff) <= BASE_EXCEPTIONS
+    base_ok = set(base_diff) <= BASE_EXCEPTIONS | set(config.get('base_exceptions', []))
 
     comparison = request(f'/repos/{repo}/compare/{base}...{head}')
     if comparison['status'] != 'ahead' or comparison['total_commits'] != len(comparison['commits']):
