@@ -97,6 +97,8 @@ issue labelled `upstream-watch` when:
 - the backport branch a patch level is built from gets new commits;
 - the official `PHP-x.y` branch, or an official `PHP-x.y-*` fix branch, gets new commits,
   or a new fix branch appears;
+- Remi's PHP 5.6 branches get new commits: 5.6 is watched, not built, until they carry
+  the backports of CVE-2026-109618 and CVE-2026-109619;
 - php-src publishes new security advisories.
 
 ## Limits

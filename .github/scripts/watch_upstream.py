@@ -7,6 +7,8 @@ Opens an issue in this repository, labelled "upstream-watch", for:
 - commits on the official php-src branches of upstream_refs after the commit
   recorded there, or the removal of one of them;
 - a new PHP-x.y-* branch on php-src, for a branch listed in versions.json;
+- commits on a branch of WATCHED, watched before any build of it, after the commit
+  recorded there;
 - php-src security advisories published since WATCH_SINCE (one issue per batch).
 A finding already reported by an issue, open or closed, is not reported again.
 Set DRY_RUN=1 to print the issues instead of opening them.
@@ -25,6 +27,22 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')
 WATCH_SINCE = os.environ['WATCH_SINCE']
 NOTIFY = os.environ.get('NOTIFY', '')
 DRY_RUN = os.environ.get('DRY_RUN') == '1'
+
+# Branches watched without being built, with the commit each one was at when last checked.
+# PHP 5.6 is not built until Remi backports to it the fixes of CVE-2026-109618 and
+# CVE-2026-109619 (critical RCEs, in his 7.2 branch since 2026-10-27).
+WATCHED = {
+    ('remicollet/php-src-security', 'PHP-5.6-security-backports'): '7df1c2b14e40d1c9f84b2903e925ef4c9f6d2373',
+    ('remicollet/php-src-security', 'PHP-5.6-security-backports-openssl11'):
+        '5c2cc46b45cf286666671df14edf25fc23676cd8',
+}
+WATCHED_SUBJECT = 'PHP 5.6 is watched, not built'
+WATCHED_ADVICE = ('PHP 5.6 waits for the backports of CVE-2026-109618 and CVE-2026-109619 before a first '
+                  'build: check whether these commits bring them. Either way, record the new head in WATCHED '
+                  '(.github/scripts/watch_upstream.py).')
+BUILD_ADVICE = ('If they fix security issues, build the next patch level: pin the new commits in versions.json, '
+                'run .github/scripts/verify_backports.py, review the adapted commits, update PATCHES.md, '
+                'then run the Build workflow.')
 
 
 def request(method, path, body=None):
@@ -60,17 +78,17 @@ def branch_link(branch):
     return f'[`{branch}`](https://github.com/{UPSTREAM}/tree/{branch})'
 
 
-def new_commits(repo, branch, known, level, built_from):
+def new_commits(repo, branch, known, subject, advice=BUILD_ADVICE):
     """Finding for commits on repo/branch after the known commit, or for the branch's removal."""
     comparison = request('GET', f'/repos/{repo}/compare/{known}...{branch}')
     if comparison is None and request('GET', f'/repos/{repo}/branches/{branch}') is None:
         return (f'Branch {branch} of {repo} was deleted',
-                f'`{branch}` no longer exists on {repo} ({level} is built from {built_from}). '
+                f'`{branch}` no longer exists on {repo} ({subject}). '
                 'Its commits may have moved to another branch: check them.')
     if comparison is None or comparison['behind_by'] > 0:
         return (f'History of {repo} {branch} was rewritten',
                 f'`{branch}` on {repo} no longer contains {known[:7]}, the commit recorded for it '
-                f'({level} is built from {built_from}). Check what changed before building anything from it.')
+                f'({subject}). Check what changed before building anything from it.')
     if comparison['ahead_by'] == 0:
         return None
     commits = comparison['commits']
@@ -78,22 +96,26 @@ def new_commits(repo, branch, known, level, built_from):
                       f"{c['commit']['message'].splitlines()[0]}" for c in commits)
     return (f"New commits on {repo} {branch} (head {commits[-1]['sha'][:7]})",
             f"[`{branch}`](https://github.com/{repo}/tree/{branch}) has {comparison['ahead_by']} commit(s) "
-            f'after {known[:7]} that {level} (built from {built_from}) does not include:\n\n{lines}\n\n'
-            'If they fix security issues, build the next patch level: pin the new commits in versions.json, '
-            'run .github/scripts/verify_backports.py, review the adapted commits, update PATCHES.md, '
-            'then run the Build workflow.')
+            f'after {known[:7]} ({subject}):\n\n{lines}\n\n{advice}')
 
 
 def branch_findings(minor, config):
     level = f"{config['base_version']}-pl{config['patch_level']}"
     repo, pinned = config['php_src_repo'], config['php_src_sha']
-    built_from = f'{repo}@{pinned[:7]}'
-    finding = new_commits(repo, config['php_src_branch'], pinned, level, built_from)
+    subject = f'{level} is built from {repo}@{pinned[:7]}'
+    finding = new_commits(repo, config['php_src_branch'], pinned, subject)
     if finding:
         yield finding
     # Official branches of this version, with the commit each one was at when last checked
     for branch, known in config.get('upstream_refs', {}).items():
-        finding = new_commits(UPSTREAM, branch, known, level, built_from)
+        finding = new_commits(UPSTREAM, branch, known, subject)
+        if finding:
+            yield finding
+
+
+def watched_findings():
+    for (repo, branch), known in WATCHED.items():
+        finding = new_commits(repo, branch, known, WATCHED_SUBJECT, WATCHED_ADVICE)
         if finding:
             yield finding
 
@@ -146,6 +168,7 @@ def main():
     for minor, config in versions.items():
         findings += branch_findings(minor, config)
         findings += new_branch_findings(minor, config)
+    findings += watched_findings()
     findings = [f for f in findings if f[0] not in reported_titles]
     advisories = advisory_finding(versions, reported_text)
     if advisories:
