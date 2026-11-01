@@ -26,7 +26,7 @@ Verification: [verification/8.1.md](verification/8.1.md), 35 commits: 2 adapted,
 
 Remarks from the review (minor; none of them is a security issue):
 
-- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only). Fix proposed in [remicollet/php-src-security#33](https://github.com/remicollet/php-src-security/pull/33).
+- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only). Fixed on the branch since this patch level by [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234) ([remicollet/php-src-security#33](https://github.com/remicollet/php-src-security/pull/33)); it comes with the next patch level.
 
 | Fix | CVE | Severity | Summary | Backported from | Commits | Verification |
 |---|---|---|---|---|---|---|
@@ -83,8 +83,8 @@ Verification: [verification/8.0.md](verification/8.0.md), 90 commits: 22 adapted
 
 Remarks from the review (minor; none of them is a security issue):
 
-- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only); fix proposed in [remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34). A few 8.0-only `tolower()` calls, which the official fix does not touch, also stay uncast.
-- GHSA-hrwm-9436-5mv3: when escaping fails, `php_pgsql_convert()` does not release the escaped string (a small request-scoped leak). Fix proposed in [remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34).
+- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only). Fixed on the branch since this patch level by [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040) ([remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34)); it comes with the next patch level. A few 8.0-only `tolower()` calls, which the official fix does not touch, also stay uncast.
+- GHSA-hrwm-9436-5mv3: when escaping fails, `php_pgsql_convert()` does not release the escaped string (a small request-scoped leak). Fixed on the branch since this patch level by [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3) ([remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34)); it comes with the next patch level.
 - GHSA-3237-qqm7-mfv7: the backport brings `php_read_stream_all_chunks()` from 8.1, which changes how `getimagesize()` reads filtered streams.
 - GHSA-fpwc-w8rq-cr92 builds on the GH-11274 change, which makes 307/308 redirects keep the method and body, as 8.1 does.
 
@@ -172,10 +172,10 @@ Verification: [verification/7.4.md](verification/7.4.md), 113 commits: 38 adapte
 
 Remarks from the review (minor; none of them is a security issue):
 
-- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only); fix proposed in [remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35). `tolower()` in the `PDO_CASE_LOWER` branch and a few 7.4-only calls, which the official fix does not touch, also stay uncast.
-- GHSA-hrwm-9436-5mv3: when escaping fails, `php_pgsql_convert()` does not release the escaped string (a small request-scoped leak). Fix proposed in [remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35).
-- The fix of the DatePeriod double constructor leak does not restore the error handling when the DateInterval is not initialized, so later warnings of that request are thrown. Fix proposed in [remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35).
-- The 32-bit-only tests of GHSA-g665-fm4p-vhff expect a message prefix that 7.4 does not print (tests only). Fix proposed in [remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35).
+- GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only). Fixed on the branch since this patch level by [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48) ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)); it comes with the next patch level. `tolower()` in the `PDO_CASE_LOWER` branch and a few 7.4-only calls, which the official fix does not touch, also stay uncast.
+- GHSA-hrwm-9436-5mv3: when escaping fails, `php_pgsql_convert()` does not release the escaped string (a small request-scoped leak). Fixed on the branch since this patch level by [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4) ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)); it comes with the next patch level.
+- The fix of the DatePeriod double constructor leak does not restore the error handling when the DateInterval is not initialized, so later warnings of that request are thrown. Fixed on the branch since this patch level by [575c10c](https://github.com/remicollet/php-src-security/commit/575c10c4e0c9da6555557bc26fd93e52edeaf1fd) ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)); it comes with the next patch level.
+- The 32-bit-only tests of GHSA-g665-fm4p-vhff expect a message prefix that 7.4 does not print (tests only). Fixed on the branch since this patch level by [458a1fd](https://github.com/remicollet/php-src-security/commit/458a1fd247f0fcb04e1129243125aa56a51ac648) ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)); it comes with the next patch level.
 - GHSA-3237-qqm7-mfv7: the backport brings `php_read_stream_all_chunks()` from 8.1, which changes how `getimagesize()` reads filtered streams.
 - GHSA-v8xr-gpvj-cx9g: the backport also brings the 8.0 transfer-encoding cleanup of bug #80256.
 - GHSA-fpwc-w8rq-cr92 builds on the GH-11274 change, which makes 307/308 redirects keep the method and body, as 8.1 does.
