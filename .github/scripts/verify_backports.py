@@ -10,6 +10,10 @@ For each branch of versions.json built from a repository other than php/php-src:
 
 Official counterparts are looked up on the official branches of the same version
 (PHP-x.y and the PHP-x.y-* fix branches) first, then on the supported branches.
+GitHub serves every commit of the fork network under php/php-src, backport branches'
+included, so a counterpart must be on a branch or tag of a clone of php/php-src. A
+trailer that names a commit of another backport branch is followed through that commit's
+own trailers.
 
 A commit passes when it is identical to its official counterpart; when it differs, or
 has no counterpart, only in files that do not go into the binaries (NEWS, tests,
@@ -28,6 +32,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -68,6 +73,28 @@ def tree(repo, commit):
 
 def patch(repo, sha):
     return request(f'/repos/{repo}/commits/{sha}', 'application/vnd.github.patch')
+
+
+def official_commits():
+    """Commits of the branches and tags of php/php-src, from a clone without trees (about
+    50 MB) kept in the temporary directory and fetched again at each run."""
+    path = os.path.join(tempfile.gettempdir(), 'php-src-official.git')
+    if os.path.isdir(path):
+        subprocess.run(['git', '-C', path, 'fetch', '--quiet', '--prune', 'origin',
+                        '+refs/heads/*:refs/heads/*', '+refs/tags/*:refs/tags/*'], check=True)
+    else:
+        subprocess.run(['git', 'clone', '--quiet', '--bare', '--filter=tree:0',
+                        f'https://github.com/{OFFICIAL}.git', path], check=True)
+    out = subprocess.run(['git', '-C', path, 'rev-list', '--all'], capture_output=True, text=True, check=True)
+    return set(out.stdout.split())
+
+
+def official_sha(sha, official):
+    """Full id of a commit of php/php-src, None for a commit of a fork."""
+    if sha in official:
+        return sha
+    matches = [s for s in official if s.startswith(sha)] if len(sha) < 40 else []
+    return matches[0] if len(matches) == 1 else None
 
 
 def patch_id(text):
@@ -153,23 +180,37 @@ def official_branch_commits(minor, tag):
     return index
 
 
-def official_counterpart(commit, own_patch_id, branch_index, known=None):
+def official_counterpart(repo, commit, own_patch_id, code, branch_index, official, known=None):
     """php/php-src commit this one was taken from, preferring one with the same patch id.
+    code: the commit changes files that go into the binaries.
     known: the official commit recorded by a review, for backports that do not name it."""
     message = commit['commit']['message']
-    candidates = [known] if known else []
-    candidates += branch_index.get(message.splitlines()[0], [])
-    candidates += CHERRY_PICK.findall(message)
-    if not candidates:
+    pending = [known] if known else []
+    pending += branch_index.get(message.splitlines()[0], [])
+    pending += CHERRY_PICK.findall(message)
+    candidates, followed = [], set()
+    while pending:
+        sha = pending.pop(0)
+        full = official_sha(sha, official)
+        if full:
+            candidates += [full] if full not in candidates else []
+        elif sha not in followed and len(followed) < 10:
+            # Cherry-picked from another backport branch: follow that commit's trailers
+            followed.add(sha)
+            picked = request(f'/repos/{repo}/commits/{sha}')
+            pending += CHERRY_PICK.findall(picked['commit']['message']) if picked else []
+    # Same author and subject, for a commit that names none, or for a code commit whose
+    # trailers stop at another backport (a bare "NEWS" subject would match unrelated commits)
+    if not candidates and (not followed or code):
         subject = message.splitlines()[0].replace('"', ' ')
         query = urllib.parse.quote(f'repo:{OFFICIAL} author-name:"{commit["commit"]["author"]["name"]}" "{subject}"')
         found = request(f'/search/commits?q={query}&per_page=20') or {'items': []}
-        candidates = [item['sha'] for item in found['items']
-                      if item['commit']['message'].splitlines()[0] == message.splitlines()[0]]
+        candidates = [item['sha'] for item in found['items'] if item['sha'] in official
+                      and item['commit']['message'].splitlines()[0] == message.splitlines()[0]]
     best = None
     for sha in candidates:
         text = patch(OFFICIAL, sha)
-        if text is None:  # cherry-picked from a commit that is not in php/php-src
+        if text is None:
             continue
         if patch_id(text) == own_patch_id:
             return sha, text
@@ -177,7 +218,7 @@ def official_counterpart(commit, own_patch_id, branch_index, known=None):
     return best or (None, None)
 
 
-def verify(minor, config, reviews):
+def verify(minor, config, reviews, official):
     repo, head, base = config['php_src_repo'], config['php_src_sha'], config['base_commit']
     tag = config['base_tag']
     base_files, tag_files = tree(repo, base), tree(OFFICIAL, tag)
@@ -195,10 +236,11 @@ def verify(minor, config, reviews):
         own = patch(repo, sha)
         own_id = patch_id(own)
         mine = files(own)
-        official, official_text = official_counterpart(commit, own_id, branch_index,
-                                                       reviews.get(sha, {}).get('official'))
-        if official is None:
-            if all(outside_binaries(p) for p in mine):
+        code = not all(outside_binaries(p) for p in mine)
+        counterpart, official_text = official_counterpart(repo, commit, own_id, code, branch_index, official,
+                                                          reviews.get(sha, {}).get('official'))
+        if counterpart is None:
+            if not code:
                 result = 'no official commit, NEWS/tests only'
             else:
                 result = 'no official commit'
@@ -220,7 +262,7 @@ def verify(minor, config, reviews):
                     if not outside_binaries(path):
                         diff += difflib.unified_diff(theirs.get(path, []), mine.get(path, []),
                                                      f'official/{path}', f'backport/{path}', n=1, lineterm='')
-                details.append((number, sha, commit['commit']['message'].splitlines()[0], official, diff))
+                details.append((number, sha, commit['commit']['message'].splitlines()[0], counterpart, diff))
         counts[result] = counts.get(result, 0) + 1
         review = reviews.get(sha, {}).get('note', '')
         if result in ('adapted', 'no official commit') and not review:
@@ -229,7 +271,7 @@ def verify(minor, config, reviews):
         official_message = official_text.split('\n---\n', 1)[0] if official_text else ''
         advisories = sorted(set(ADVISORY.findall(commit['commit']['message'] + official_message)))
         rows.append(f"| {number} | [{sha[:7]}](https://github.com/{repo}/commit/{sha}) "
-                    f"| {f'[{official[:7]}](https://github.com/{OFFICIAL}/commit/{official})' if official else '-'} "
+                    f"| {f'[{counterpart[:7]}](https://github.com/{OFFICIAL}/commit/{counterpart})' if counterpart else '-'} "
                     f"| {commit['commit']['message'].splitlines()[0].replace('|', chr(92) + '|')} "
                     f"| {', '.join(advisories) or '-'} | {result} | {review or ('**to review**' if sha in unreviewed else '')} |")
         print(f'{minor} {number:3}/{len(comparison["commits"])} {sha[:7]} {result}', flush=True)
@@ -250,7 +292,7 @@ def verify(minor, config, reviews):
                   'Adapted commits: differences between the official patch and the backport in files that go '
                   'into the binaries (hunk line numbers ignored). Commits without an official counterpart: '
                   'their whole patch.']
-        for number, sha, subject, official, diff in details:
+        for number, sha, subject, _, diff in details:
             lines += ['', f'<details><summary>#{number} {sha[:7]} {subject}</summary>', '', '```diff', *diff, '```',
                       '', '</details>']
     os.makedirs('verification', exist_ok=True)
@@ -264,13 +306,14 @@ def main():
         versions = json.load(f)
     reviews_path = 'verification/reviews.json'
     reviews = json.load(open(reviews_path, encoding='utf-8')) if os.path.exists(reviews_path) else {}
+    official = official_commits()
     failed = False
     for minor in sys.argv[1:] or list(versions):
         config = versions[minor]
         if config['php_src_repo'] == OFFICIAL:
             print(f'{minor}: built from {OFFICIAL}, nothing to verify')
             continue
-        base_ok, unreviewed = verify(minor, config, reviews)
+        base_ok, unreviewed = verify(minor, config, reviews, official)
         if not base_ok:
             print(f'{minor}: base commit differs from {config["base_tag"]}')
         if unreviewed:

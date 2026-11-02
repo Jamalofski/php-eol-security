@@ -64,7 +64,10 @@ build stops otherwise:
 
 - the base commit must have the tree of the official release tag;
 - every later commit is compared, with `git patch-id`, to the php/php-src commit it was
-  taken from (its "cherry picked from commit" line, or the same author and subject);
+  taken from (its "cherry picked from commit" line, or the same author and subject). That
+  commit must be on a branch or tag of php/php-src: GitHub also serves the commits of its
+  forks under php/php-src, so a line naming a commit of another backport branch is
+  followed to the official one;
 - a commit passes when it is identical to it; when it differs only in files that are not
   part of the binaries (NEWS, tests); or when it adds and removes the same lines in the
   same functions, the older code around the change being the only difference;
