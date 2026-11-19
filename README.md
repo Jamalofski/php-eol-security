@@ -24,15 +24,15 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
   packs, which almost nobody downloaded.
 
 Current patch levels. Each one carries the php-src security fixes published since the
-end of life of the branch, as backported by Remi Collet and listed in
+end of life of the branch, as backported by Remi Collet and Ondřej Surý and listed in
 [PATCHES.md](PATCHES.md). Binaries are attached to the
 [releases](https://github.com/Jamalofski/php-eol-security/releases).
 
 | Branch | Version | Toolchain |
 |---|---|---|
-| 8.1 | **PHP 8.1.34 Patch Level 2** (`8.1.34-pl2`) | `vs16` (MSVC v142, Visual C++ 2019) |
-| 8.0 | **PHP 8.0.30 Patch Level 2** (`8.0.30-pl2`) | `vs16` (MSVC v142, Visual C++ 2019) |
-| 7.4 | **PHP 7.4.33 Patch Level 2** (`7.4.33-pl2`) | `vc15` (MSVC v141, Visual C++ 2017) |
+| 8.1 | **PHP 8.1.34 Patch Level 3** (`8.1.34-pl3`) | `vs16` (MSVC v142, Visual C++ 2019) |
+| 8.0 | **PHP 8.0.30 Patch Level 3** (`8.0.30-pl3`) | `vs16` (MSVC v142, Visual C++ 2019) |
+| 7.4 | **PHP 7.4.33 Patch Level 3** (`7.4.33-pl3`) | `vc15` (MSVC v141, Visual C++ 2017) |
 
 Patch level 1 carried only the fix for CVE-2026-109618 and CVE-2026-109619 that the PHP
 team published for these branches.
@@ -41,7 +41,7 @@ team published for these branches.
 
 | | |
 |---|---|
-| Sources | the last official release of the branch plus the official php-src security fixes published since, as backported by Remi Collet in [remicollet/php-src-security](https://github.com/remicollet/php-src-security) and checked commit by commit against php-src (see below); pinned per branch in [versions.json](versions.json). The only change made here is the version string |
+| Sources | the last official release of the branch plus the official php-src security fixes published since, as backported by Remi Collet and Ondřej Surý in [remicollet/php-src-security](https://github.com/remicollet/php-src-security) and checked commit by commit against php-src (see below); pinned per branch in [versions.json](versions.json). The only change made here is the version string |
 | Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7.4 has no such entry) |
 | Toolchain | the one of the official builds of the branch (table above), on `windows-2022` |
 | Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for 7.4, the workflow adds back OCI8 and PDO_OCI, which the 7.4 releases shipped and the builder no longer enables |
@@ -80,7 +80,7 @@ counterpart and result, and show what each reviewed commit changes.
 ## Verify
 
 ```
-php -v                                # PHP 8.1.34-pl2 ...
+php -v                                # PHP 8.1.34-pl3 ...
 php -i | findstr "Build Provider"     # Jamal TANTAOUI (unofficial EOL security build) ... (8.0+)
 ```
 
@@ -89,7 +89,7 @@ signed build provenance attestation, which ties it to the workflow run and the
 commit that built it:
 
 ```
-gh attestation verify php-8.1.34-pl2-nts-Win32-vs16-x64.zip --repo Jamalofski/php-eol-security
+gh attestation verify php-8.1.34-pl3-nts-Win32-vs16-x64.zip --repo Jamalofski/php-eol-security
 ```
 
 ## Upstream watch
@@ -108,10 +108,10 @@ issue labelled `upstream-watch` when:
 
 - Only the fixes listed in [PATCHES.md](PATCHES.md). Bundled libraries stay at the
   versions of the branch (OpenSSL 1.1.1, itself end-of-life, among others).
-- No build of PHP 7.3 or older. Remi Collet's 7.3 and 7.2 branches lack about twenty
-  security fixes of 7.4 that apply to their code (among them GHSA-xr7j-rvgx-xq5p and
-  GHSA-vvx9-73fr-5jjx in OpenSSL, GHSA-62xp-839h-2637 in FastCGI, GHSA-j3wh-g957-2m85 in
-  Phar): binaries of these branches could not be presented as patched.
+- No build of PHP 7.3 or older yet. Until 2026-11-19, Remi Collet's 7.3 and 7.2 branches
+  lacked about twenty security fixes of 7.4 that apply to their code (among them
+  GHSA-xr7j-rvgx-xq5p and GHSA-vvx9-73fr-5jjx in OpenSSL, GHSA-62xp-839h-2637 in FastCGI,
+  GHSA-j3wh-g957-2m85 in Phar). They have caught up since; they are not verified here yet.
 - Migrating to a supported PHP version remains the real fix.
 - Provided as is, without warranty.
 
