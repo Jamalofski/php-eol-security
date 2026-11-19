@@ -1,7 +1,7 @@
 # php-eol-security
 
-Unofficial Windows builds of end-of-life PHP (7.2, 7.3, 7.4, 8.0, 8.1), built from Remi
-Collet's backport branches (remicollet/php-src-security) with the official php-windows-builder.
+Unofficial Windows builds of end-of-life PHP (7.4, 8.0, 8.1), built from Remi Collet's
+backport branches (remicollet/php-src-security) with the official php-windows-builder.
 Every commit of those branches is verified against php/php-src before each build.
 
 ## Git, CI and delivery
@@ -26,10 +26,6 @@ Every commit of those branches is verified against php/php-src before each build
 5. Run a validation build (`release=false`), then the release on Jamal's go. Check each
    release: assets against `SHA256SUMS`, one attestation per zip, one CycloneDX SBOM per
    binary zip, no debug or test pack.
-
-7.3 and 7.2 take the vc15 packages of 7.4 for the libraries listed in `deps_overrides`
-(versions.json): their own dependency series stopped in 2020-2021. The build checks the
-library versions the binaries load.
 
 Published binaries must keep their provenance attestations, checksums, SBOM and immutable
 releases; actions stay pinned by commit SHA.

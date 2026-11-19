@@ -7,7 +7,7 @@ on:
       branch:
         description: PHP branch, as listed in versions.json
         type: choice
-        options: ['8.1', '8.0', '7.4', '7.3', '7.2']
+        options: ['8.1', '8.0', '7.4']
       release:
         description: Publish a GitHub release with the binaries
         type: boolean
@@ -33,7 +33,6 @@ jobs:
       compiler: ${{ steps.cfg.outputs.compiler }}
       build_provider: ${{ steps.cfg.outputs.build_provider }}
       extra_configure: ${{ steps.cfg.outputs.extra_configure }}
-      deps_overrides: ${{ steps.cfg.outputs.deps_overrides }}
       latest: ${{ steps.cfg.outputs.latest }}
     steps:
       - name: Checkout
@@ -55,7 +54,6 @@ jobs:
             echo "compiler=$(jq -r .compiler cfg.json)"
             echo "build_provider=$(jq -r .build_provider cfg.json)"
             echo "extra_configure=$(jq -c '.extra_configure // []' cfg.json)"
-            echo "deps_overrides=$(jq -c '.deps_overrides // {}' cfg.json)"
             # Only the highest branch gets the "Latest" badge on GitHub
             echo "latest=$(jq -r --arg b "$BRANCH" 'keys | map(split(".") | map(tonumber)) | max | map(tostring) | join(".") == $b' versions.json)"
           } >> "$GITHUB_OUTPUT"
@@ -79,7 +77,7 @@ jobs:
         arch: [x64, x86]
         ts: [nts, ts]
     # Same runner image as the official builds; the builder installs the
-    # toolset of the branch (vc15 for 7.2 to 7.4, vs16 for 8.0 and 8.1)
+    # toolset of the branch (vc15 for 7.4, vs16 for 8.0 and 8.1)
     runs-on: windows-2022
     env:
       PHP_SRC_REPO: ${{ needs.config.outputs.php_src_repo }}
@@ -125,7 +123,7 @@ jobs:
           EXTRA_CONFIGURE: ${{ needs.config.outputs.extra_configure }}
         run: |
           # Options of the original releases of the branch that the builder's
-          # configuration lacks (OCI8 and PDO_OCI for PHP 7)
+          # configuration lacks (OCI8 and PDO_OCI for 7.4)
           $vs = (Get-Content builder/php/BuildPhp/config/vs.json -Raw | ConvertFrom-Json).php.'${{ inputs.branch }}'
           $bat = "builder/php/BuildPhp/config/$vs/${{ matrix.arch }}/config.${{ matrix.ts }}.bat"
           $content = Get-Content $bat -Raw
@@ -133,22 +131,6 @@ jobs:
           $options = ($env:EXTRA_CONFIGURE | ConvertFrom-Json | ForEach-Object { "`"$_`"" }) -join ' '
           Set-Content $bat $content.Replace(' %*', " $options %*") -NoNewline
           Get-Content $bat
-
-      - name: Dependency overrides
-        if: needs.config.outputs.deps_overrides != '{}'
-        shell: pwsh
-        env:
-          DEPS_OVERRIDES: ${{ needs.config.outputs.deps_overrides }}
-        run: |
-          # Newer packages than the dependency series of the branch (for 7.3 and 7.2,
-          # the vc15 packages of 7.4), through the builder's own deps-overrides.json
-          $path = 'builder/php/BuildPhp/config/deps-overrides.json'
-          $config = Get-Content $path -Raw | ConvertFrom-Json
-          if ($config.PSObject.Properties['${{ inputs.branch }}']) { throw "${path} already has an entry for ${{ inputs.branch }}" }
-          $libraries = $env:DEPS_OVERRIDES | ConvertFrom-Json
-          $config | Add-Member -NotePropertyName '${{ inputs.branch }}' -NotePropertyValue ([pscustomobject]@{ maxVersion = $env:BASE_VERSION; libraries = $libraries })
-          $config | ConvertTo-Json -Depth 5 | Set-Content $path
-          Get-Content $path
 
       - name: Set version
         shell: pwsh
@@ -158,16 +140,8 @@ jobs:
           # version is set from versions.json, not kept from the sources.
           $version = "$env:BASE_VERSION$env:VERSION_SUFFIX"
           [int]$major, [int]$minor, [int]$release = $env:BASE_VERSION.Split('.')
-          $configure = if ((Get-Content configure.ac -Raw).Contains('AC_INIT([PHP],')) {
-            @(@{ File = 'configure.ac'; From = 'AC_INIT\(\[PHP\],\[[^\]]+\]'; To = "AC_INIT([PHP],[$version]" })
-          } else {
-            # PHP 7.3 and older set the version in shell variables of configure.ac
-            @(
-              @{ File = 'configure.ac'; From = '(?m)^PHP_RELEASE_VERSION=\d+$'; To = "PHP_RELEASE_VERSION=$release" },
-              @{ File = 'configure.ac'; From = '(?m)^PHP_EXTRA_VERSION="[^"]*"$'; To = "PHP_EXTRA_VERSION=`"$env:VERSION_SUFFIX`"" }
-            )
-          }
-          $patches = @($configure) + @(
+          $patches = @(
+            @{ File = 'configure.ac'; From = 'AC_INIT\(\[PHP\],\[[^\]]+\]'; To = "AC_INIT([PHP],[$version]" },
             @{ File = 'main/php_version.h'; From = "#define PHP_MAJOR_VERSION $major\b"; To = "#define PHP_MAJOR_VERSION $major" },
             @{ File = 'main/php_version.h'; From = "#define PHP_MINOR_VERSION $minor\b"; To = "#define PHP_MINOR_VERSION $minor" },
             @{ File = 'main/php_version.h'; From = '#define PHP_RELEASE_VERSION \d+'; To = "#define PHP_RELEASE_VERSION $release" },
@@ -216,7 +190,6 @@ jobs:
           COMPILER: ${{ needs.config.outputs.compiler }}
           CHECK_PROVIDER: ${{ needs.config.outputs.build_provider }}
           EXTRA_CONFIGURE: ${{ needs.config.outputs.extra_configure }}
-          DEPS_OVERRIDES: ${{ needs.config.outputs.deps_overrides }}
         run: |
           Get-ChildItem | Format-Table Name, Length
           $zip = Get-ChildItem "php-$env:BASE_VERSION*.zip" | Select-Object -First 1
@@ -231,7 +204,7 @@ jobs:
             'Compiler' = $env:COMPILER
             'Thread Safety' = $(if ('${{ matrix.ts }}' -eq 'ts') { 'enabled' } else { 'disabled' })
           }
-          # PHP 7 has no "Build Provider" entry
+          # PHP 7.4 has no "Build Provider" entry
           if ($env:CHECK_PROVIDER -eq 'true') { $expected['Build Provider'] = $env:PHP_BUILD_PROVIDER }
           foreach ($key in $expected.Keys) {
             $line = ($info -split "`r?`n" | Where-Object { $_ -like "$key =>*" } | Select-Object -First 1)
@@ -246,25 +219,6 @@ jobs:
               if (-not (Test-Path $dll)) { throw "$(Split-Path $dll -Leaf) is missing" }
               Write-Host "$(Split-Path $dll -Leaf) shipped"
             }
-          }
-
-          # Overridden libraries are the ones the binaries use (nghttp2 has no probe)
-          $probes = @{
-            openssl = 'OPENSSL_VERSION_TEXT'
-            libcurl = "curl_version()['version']"
-            zlib = 'ZLIB_VERSION'
-            libxml2 = 'LIBXML_DOTTED_VERSION'
-            libssh2 = "curl_version()['libssh_version']"
-          }
-          $probe = Join-Path $env:RUNNER_TEMP probe.php
-          foreach ($library in ($env:DEPS_OVERRIDES | ConvertFrom-Json).PSObject.Properties) {
-            if (-not $probes.ContainsKey($library.Name)) { Write-Host "$($library.Name): no version probe"; continue }
-            # Package revision aside: 1.1.1s-74 is OpenSSL 1.1.1s
-            $version = $library.Value -replace '-\d+$', ''
-            Set-Content $probe "<?php echo $($probes[$library.Name]);"
-            $out = (& $php -n -d "extension=$dir\ext\php_curl.dll" -d "extension=$dir\ext\php_openssl.dll" $probe 2>&1 | Out-String).Trim()
-            Write-Host "$($library.Name): $out"
-            if (-not $out.Contains($version)) { throw "$($library.Name) is not $version" }
           }
 
           # Every shipped extension loads without any startup warning. Same exclusions
