@@ -22,14 +22,12 @@ The patch level 2 base, [51dc7cf](https://github.com/remicollet/php-src-security
 ### PHP 8.1.34 Patch Level 3 (8.1.34-pl3)
 
 Source: [remicollet/php-src-security@af0f042](https://github.com/remicollet/php-src-security/commit/af0f042ffdae63ca55237e3d4af8bc6069b7b291)
-(branch `PHP-8.1-security-backports`): patch level 2 plus the corrections of its review remarks, proposed from here and merged by Remi Collet. No new php-src advisory.
+(branch `PHP-8.1-security-backports`): the 24 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/8.1.md](verification/8.1.md), 38 commits: 2 adapted, 25 identical, 3 identical code, NEWS/tests differ, 1 no official commit, 6 no official commit, NEWS/tests only, 1 same changes, context differs.
 
-| Correction | Commits | Verification |
-|---|---|---|
-| GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now casts its argument to `unsigned char`, as the official fix does from 8.2 on ([remicollet/php-src-security#33](https://github.com/remicollet/php-src-security/pull/33)) | [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234) | reviewed |
-
-Other commits (tests and documentation, not in the binaries): tests of the CVE-2026-109618/109619 mitigation, with the existing tests whose output it changes marked as expected failures ([f6fb4db](https://github.com/remicollet/php-src-security/commit/f6fb4db398163ad4632724e0631700bd448260fe)), and the README of the branch ([af0f042](https://github.com/remicollet/php-src-security/commit/af0f042ffdae63ca55237e3d4af8bc6069b7b291)).
+| Fix | CVE | Severity | Summary | Backported from | Commits | Verification |
+|---|---|---|---|---|---|---|
+| [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4) | CVE-2026-7258 | - | Standard: completes the backport of GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2. | 8.2.31 | [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234) | reviewed |
 
 ### PHP 8.1.34 Patch Level 2 (8.1.34-pl2)
 
@@ -70,8 +68,8 @@ Remarks from the review (minor; none of them is a security issue):
 
 Other fixes listed in the NEWS of the branch:
 
-- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33; -)
-- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32; -)
+- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33)
+- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32)
 
 ### PHP 8.1.34 Patch Level 1 (8.1.34-pl1)
 
@@ -91,15 +89,13 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 ### PHP 8.0.30 Patch Level 3 (8.0.30-pl3)
 
 Source: [remicollet/php-src-security@f55d717](https://github.com/remicollet/php-src-security/commit/f55d717e000b65890645a302f0ddde7e3cd04881)
-(branch `PHP-8.0-security-backports`): patch level 2 plus the corrections of its review remarks, proposed from here and merged by Remi Collet. No new php-src advisory.
+(branch `PHP-8.0-security-backports`): the 53 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/8.0.md](verification/8.0.md), 95 commits: 22 adapted, 35 identical, 16 identical code, NEWS/tests differ, 3 no official commit, 15 no official commit, NEWS/tests only, 4 same changes, context differs.
 
-| Correction | Commits | Verification |
-|---|---|---|
-| GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now casts its argument to `unsigned char`, as the official fix does from 8.2 on ([remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34)) | [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040) | reviewed |
-| GHSA-hrwm-9436-5mv3: `php_pgsql_convert()` now releases the escaped string when escaping fails ([remicollet/php-src-security#34](https://github.com/remicollet/php-src-security/pull/34)) | [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3) | reviewed |
-
-Other commits (tests and documentation, not in the binaries): tests of the CVE-2026-109618/109619 mitigation, with the existing tests whose output it changes marked as expected failures ([ca2c839](https://github.com/remicollet/php-src-security/commit/ca2c83957e5cc33f81b853b4116acbbe8017c25c), [14f1937](https://github.com/remicollet/php-src-security/commit/14f1937cbebc4c1481edc0555a26669a37633b18)), and the README of the branch ([f55d717](https://github.com/remicollet/php-src-security/commit/f55d717e000b65890645a302f0ddde7e3cd04881)).
+| Fix | CVE | Severity | Summary | Backported from | Commits | Verification |
+|---|---|---|---|---|---|---|
+| [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4) | CVE-2026-7258 | - | Standard: completes the backport of GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2. | 8.2.31 | [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040) | reviewed |
+| [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3) | CVE-2025-1735 | - | PGSQL: completes the backport of GHSA-hrwm-9436-5mv3: `php_pgsql_convert()` releases the escaped string when escaping fails. | 8.1.33 | [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3) | reviewed |
 
 ### PHP 8.0.30 Patch Level 2 (8.0.30-pl2)
 
@@ -172,8 +168,8 @@ Remarks from the review (minor; none of them is a security issue):
 
 Other fixes listed in the NEWS of the branch:
 
-- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33; -)
-- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32; -)
+- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33)
+- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32)
 
 ### PHP 8.0.30 Patch Level 1 (8.0.30-pl1)
 
@@ -193,16 +189,17 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 ### PHP 7.4.33 Patch Level 3 (7.4.33-pl3)
 
 Source: [remicollet/php-src-security@397aa20](https://github.com/remicollet/php-src-security/commit/397aa202cacf70ad4e3b0bfc1618f9ccdeb335b1)
-(branch `PHP-7.4-security-backports`): patch level 2 plus the corrections of its review remarks, proposed from here and merged by Remi Collet. No new php-src advisory.
+(branch `PHP-7.4-security-backports`): the 58 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/7.4.md](verification/7.4.md), 119 commits: 38 adapted, 27 identical, 13 identical code, NEWS/tests differ, 6 no official commit, 29 no official commit, NEWS/tests only, 6 same changes, context differs.
 
-| Correction | Commits | Verification |
-|---|---|---|
-| GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now casts its argument to `unsigned char`, as the official fix does from 8.2 on ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)) | [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48) | reviewed |
-| GHSA-hrwm-9436-5mv3: `php_pgsql_convert()` now releases the escaped string when escaping fails ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)) | [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4) | reviewed |
-| Date: the DatePeriod constructor fix restores the error handling when the DateInterval is not initialized ([remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)) | [575c10c](https://github.com/remicollet/php-src-security/commit/575c10c4e0c9da6555557bc26fd93e52edeaf1fd) | reviewed |
+| Fix | CVE | Severity | Summary | Backported from | Commits | Verification |
+|---|---|---|---|---|---|---|
+| [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4) | CVE-2026-7258 | - | Standard: completes the backport of GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2. | 8.2.31 | [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48) | reviewed |
+| [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3) | CVE-2025-1735 | - | PGSQL: completes the backport of GHSA-hrwm-9436-5mv3: `php_pgsql_convert()` releases the escaped string when escaping fails. | 8.1.33 | [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4) | reviewed |
 
-Other commits (tests and documentation, not in the binaries): the expected output of the 32-bit GHSA-g665-fm4p-vhff tests ([458a1fd](https://github.com/remicollet/php-src-security/commit/458a1fd247f0fcb04e1129243125aa56a51ac648), [remicollet/php-src-security#35](https://github.com/remicollet/php-src-security/pull/35)), tests of the CVE-2026-109618/109619 mitigation, with the existing tests whose output it changes marked as expected failures ([6aa086f](https://github.com/remicollet/php-src-security/commit/6aa086f68b8f4d285ad98c57f4c6837d3b9567fb)), and the README of the branch ([397aa20](https://github.com/remicollet/php-src-security/commit/397aa202cacf70ad4e3b0bfc1618f9ccdeb335b1)).
+Other fixes:
+
+- Date: the DatePeriod constructor restores its error handling when the DateInterval is not initialized, completing the backport of the double `__construct()` leak fix of 8.2.33 ([575c10c](https://github.com/remicollet/php-src-security/commit/575c10c4e0c9da6555557bc26fd93e52edeaf1fd)).
 
 ### PHP 7.4.33 Patch Level 2 (7.4.33-pl2)
 
@@ -283,8 +280,8 @@ Remarks from the review (minor; none of them is a security issue):
 
 Other fixes listed in the NEWS of the branch:
 
-- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33; -)
-- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32; -)
+- Date: Fixed leak on double DatePeriod::__construct() call. (8.2.33)
+- OpenSSL: Fixed bug GH-22187 (Memory corruption (zend_mm_heap corrupted) in openssl_encrypt with AES-WRAP-PAD). (8.2.32)
 
 ### PHP 7.4.33 Patch Level 1 (7.4.33-pl1)
 
