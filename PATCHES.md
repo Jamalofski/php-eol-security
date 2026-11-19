@@ -25,7 +25,7 @@ Source: [remicollet/php-src-security@af0f042](https://github.com/remicollet/php-
 (branch `PHP-8.1-security-backports`): the 24 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/8.1.md](verification/8.1.md), 38 commits: 2 adapted, 25 identical, 3 identical code, NEWS/tests differ, 1 no official commit, 6 no official commit, NEWS/tests only, 1 same changes, context differs.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234)<br>reviewed |
 
@@ -39,7 +39,7 @@ Remarks from the review (minor; none of them is a security issue):
 
 - GHSA-m8rr-4c36-8gq4: the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs keeps an uncast `isalnum()` (command-line input only). Fixed on the branch since this patch level by [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234) ([remicollet/php-src-security#33](https://github.com/remicollet/php-src-security/pull/33)); it comes with patch level 3.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>[GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618<br>CVE-2026-109619 | critical | Core: Avoid state corruption via bailout (mitigation) | 8.2.35 | [1e06d14](https://github.com/remicollet/php-src-security/commit/1e06d14cdc77d28b88d2daa99bdfdd4dfaae831b)<br>adapted |
 | [GHSA-ch8v-r6jh-4vvr](https://github.com/php/php-src/security/advisories/GHSA-ch8v-r6jh-4vvr) | low | Filter: FILTER_SANITIZE_ENCODED does not encode 0xFF | 8.2.34 | [9e4f091](https://github.com/remicollet/php-src-security/commit/9e4f091d31088af32da3c3247b1a8a51f703f80d)<br>identical |
@@ -76,7 +76,7 @@ Other fixes listed in the NEWS of the branch:
 Source: [php/php-src@1d7dec1](https://github.com/php/php-src/commit/1d7dec178a094e6e75b229ce22754045f8c6070a)
 (branch [`PHP-8.1-CVE-2026-109618-109619`](https://github.com/php/php-src/tree/PHP-8.1-CVE-2026-109618-109619))
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618 | critical | RCE via OOM corruption | - | [1d7dec1](https://github.com/php/php-src/commit/1d7dec178a094e6e75b229ce22754045f8c6070a)<br>upstream |
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>CVE-2026-109619 | critical | RCE via stale global state | - | [1d7dec1](https://github.com/php/php-src/commit/1d7dec178a094e6e75b229ce22754045f8c6070a)<br>upstream |
@@ -92,7 +92,7 @@ Source: [remicollet/php-src-security@f55d717](https://github.com/remicollet/php-
 (branch `PHP-8.0-security-backports`): the 53 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/8.0.md](verification/8.0.md), 95 commits: 22 adapted, 35 identical, 16 identical code, NEWS/tests differ, 3 no official commit, 15 no official commit, NEWS/tests only, 4 same changes, context differs.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3)<br>reviewed |
@@ -110,7 +110,7 @@ Remarks from the review (minor; none of them is a security issue):
 - GHSA-3237-qqm7-mfv7: the backport brings `php_read_stream_all_chunks()` from 8.1, which changes how `getimagesize()` reads filtered streams.
 - GHSA-fpwc-w8rq-cr92 builds on the GH-11274 change, which makes 307/308 redirects keep the method and body, as 8.1 does.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>[GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618<br>CVE-2026-109619 | critical | Core: Avoid state corruption via bailout (mitigation) | 8.2.35 | [d5f09f6](https://github.com/remicollet/php-src-security/commit/d5f09f67ce5082827640eb132978b4975219cb49)<br>adapted |
 | [GHSA-ch8v-r6jh-4vvr](https://github.com/php/php-src/security/advisories/GHSA-ch8v-r6jh-4vvr) | low | Filter: FILTER_SANITIZE_ENCODED does not encode 0xFF | 8.2.34 | [e1ae7c4](https://github.com/remicollet/php-src-security/commit/e1ae7c43933a8fb933beee712a3bc7f500ed7aae)<br>identical |
@@ -176,7 +176,7 @@ Other fixes listed in the NEWS of the branch:
 Source: [php/php-src@82f8f31](https://github.com/php/php-src/commit/82f8f31b16a035c1b67cc253e79f7cc288f4cc20)
 (branch [`PHP-8.0-CVE-2026-109618-109619`](https://github.com/php/php-src/tree/PHP-8.0-CVE-2026-109618-109619))
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618 | critical | RCE via OOM corruption | - | [82f8f31](https://github.com/php/php-src/commit/82f8f31b16a035c1b67cc253e79f7cc288f4cc20)<br>upstream |
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>CVE-2026-109619 | critical | RCE via stale global state | - | [82f8f31](https://github.com/php/php-src/commit/82f8f31b16a035c1b67cc253e79f7cc288f4cc20)<br>upstream |
@@ -192,7 +192,7 @@ Source: [remicollet/php-src-security@397aa20](https://github.com/remicollet/php-
 (branch `PHP-7.4-security-backports`): the 58 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
 Verification: [verification/7.4.md](verification/7.4.md), 119 commits: 38 adapted, 27 identical, 13 identical code, NEWS/tests differ, 6 no official commit, 29 no official commit, NEWS/tests only, 6 same changes, context differs.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4)<br>reviewed |
@@ -217,7 +217,7 @@ Remarks from the review (minor; none of them is a security issue):
 - GHSA-v8xr-gpvj-cx9g: the backport also brings the 8.0 transfer-encoding cleanup of bug #80256.
 - GHSA-fpwc-w8rq-cr92 builds on the GH-11274 change, which makes 307/308 redirects keep the method and body, as 8.1 does.
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>[GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618<br>CVE-2026-109619 | critical | Core: Avoid state corruption via bailout (mitigation) | 8.2.35 | [802c210](https://github.com/remicollet/php-src-security/commit/802c21075308066362aab4993478dcd0577993a6)<br>adapted |
 | [GHSA-ch8v-r6jh-4vvr](https://github.com/php/php-src/security/advisories/GHSA-ch8v-r6jh-4vvr) | low | Filter: FILTER_SANITIZE_ENCODED does not encode 0xFF | 8.2.34 | [f517508](https://github.com/remicollet/php-src-security/commit/f517508eb09d9e25c2c1862ffe69b6e91588d6f2)<br>identical |
@@ -288,7 +288,7 @@ Other fixes listed in the NEWS of the branch:
 Source: [php/php-src@712e60f](https://github.com/php/php-src/commit/712e60f9edfd03f0960fc4fc3c2c375f42b90aa2)
 (branch [`PHP-7.4-CVE-2026-109618-109619`](https://github.com/php/php-src/tree/PHP-7.4-CVE-2026-109618-109619))
 
-| Advisory | Severity | Fix | From | Commit, verification |
+| Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
 | [GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)<br>CVE-2026-109618 | critical | RCE via OOM corruption | - | [712e60f](https://github.com/php/php-src/commit/712e60f9edfd03f0960fc4fc3c2c375f42b90aa2)<br>upstream |
 | [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)<br>CVE-2026-109619 | critical | RCE via stale global state | - | [712e60f](https://github.com/php/php-src/commit/712e60f9edfd03f0960fc4fc3c2c375f42b90aa2)<br>upstream |
