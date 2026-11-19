@@ -22,10 +22,14 @@ branch's code around the change). Any other commit must be reviewed in
 verification/reviews.json.
 Writes verification/<branch>.md and exits 1 when a commit is not reviewed.
 
+Commits and trees fetched by their full id are cached in the temporary directory, and
+commit searches for a day, so that a rerun after a review is quick.
+
 Usage: verify_backports.py [branch ...]   (default: every branch of versions.json)
 """
 
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -43,9 +47,26 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')
 BASE_EXCEPTIONS = {'README.md'}
 CHERRY_PICK = re.compile(r'cherry picked from commit ([0-9a-f]{40})')
 ADVISORY = re.compile(r'GHSA(?:-[0-9a-z]{4}){3}|CVE-\d{4}-\d{4,}')
+# API responses kept between runs, so that a rerun after a review only fetches what may change
+CACHE = os.path.join(tempfile.gettempdir(), 'php-src-verify-cache')
+IMMUTABLE = re.compile(r'/repos/[^/]+/[^/]+/(commits|git/trees)/[0-9a-f]{40}(\?recursive=1)?$')
+
+
+def cache_ttl(path):
+    """Seconds a response stays cached: None for ever (a commit or tree named by its full id
+    does not change), one day for a commit search, False when it is not cached."""
+    if IMMUTABLE.match(path):
+        return None
+    return 86400 if path.startswith('/search/') else False
 
 
 def request(path, accept='application/vnd.github+json'):
+    ttl = cache_ttl(path)
+    cached = os.path.join(CACHE, hashlib.sha256(f'{accept} {path}'.encode()).hexdigest())
+    if ttl is not False and os.path.exists(cached) and (ttl is None or time.time() - os.path.getmtime(cached) < ttl):
+        with open(cached, encoding='utf-8') as f:
+            text = f.read()
+        return json.loads(text) if accept.endswith('json') else text
     headers = {'Accept': accept, 'X-GitHub-Api-Version': '2022-11-28'}
     if TOKEN:
         headers['Authorization'] = 'Bearer ' + TOKEN
@@ -53,6 +74,10 @@ def request(path, accept='application/vnd.github+json'):
         try:
             with urllib.request.urlopen(urllib.request.Request('https://api.github.com' + path, headers=headers)) as r:
                 text = r.read().decode('utf-8', 'replace')
+                if ttl is not False:
+                    os.makedirs(CACHE, exist_ok=True)
+                    with open(cached, 'w', encoding='utf-8') as f:
+                        f.write(text)
                 return json.loads(text) if accept.endswith('json') else text
         except urllib.error.HTTPError as error:
             if error.code in (404, 422):
