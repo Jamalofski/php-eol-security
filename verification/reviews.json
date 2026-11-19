@@ -361,5 +361,221 @@
   "ed1de09f6bd108d32e21417dbe9ac1bea232d6d3": {
     "branch": "7.4",
     "note": "Same change as the official fix a303f69 (folded header lines appended to a smart_str instead of a new string per line), with 7.4 types: zend_bool and 1/0 for bool, true and false. The removed lines are 7.4's own concatenation code from the GHSA-v8xr-gpvj-cx9g backport (zend_string_alloc() and memcpy(), as zend_string_concat3() does not exist in 7.4)."
+  },
+  "90baab6e948f69226d30ec5da3f2e86443967d24": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 0cfca9a (reviewed there): Identical to the official PHP-8.0 fix shipped in 8.0.29, ac4254a plus its follow-up 32c7c43 ('Fix wrong backporting of previous soap patch'): official 126d517 (8.1) resets the connection with Z_CLIENT_*_P macros that only exist from 8.1, while 7.4/8.0 keep httpurl/httpsocket/_use_proxy as dynamic properties and delete them with zend_hash_str_del() as the other error paths of make_http_soap_request() do. The php_hash.h include needed for php_hash_bin2hex() comes with the next commit #16 4043903 (= official 0572448), as in 8.0.29."
+  },
+  "79a97d0e2b93c40c3728d587046266989c5acc42": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 24e669e (reviewed there): 7.4 port of the zend_test part of official c283c3a together with official follow-up 62228a2 ('Disable global state test on Windows'): zend_test_override_libxml_global_state() and its libxml includes are guarded by HAVE_LIBXML && !PHP_WIN32 and registered in 7.4's hand-written function table, and the three tests skip when the function is absent (the xmlreader test also gains '@' on XMLReader::xml/open). zend_test is built (shared php_zend_test.dll, forced on by the builder's --enable-snapshot-build), but the guarded code is not compiled on Windows, so the change is test-only and leaves the binaries unchanged."
+  },
+  "46b570a1e4aeb4a414898fcc09503ac388d16256": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport a6c1c62 (reviewed there): Same change as official 093c08a (via Remi's 8.0 cherry-pick 2e07a3a): the early __Host-/__Secure- checks are replaced by php_is_forbidden_variable_name() applied right before both insertion points of php_register_variable_ex(). Only 7.4 types differ: zend_bool/1/0 instead of bool/true/false, and the 7.4 signature char *var_name instead of const char *var_name."
+  },
+  "5e7cd3e7ed7c894550ca35514708ffe1874a31ad": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 97546df (reviewed there): Identical to the 8.0 backport of d9baa9f (int-returning quoter, returns 0 on overflow); only offsets differ. ZSTR_MAX_LEN exists in 7.4, and the 7.4 callers treat 0 as failure."
+  },
+  "72d4c4e435544c2d87d634188d480099345b601b": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 0530cbf (reviewed there): Identical to the 8.0 backport of 69c5f68; only hunk offsets differ."
+  },
+  "09cccab30d53614bb826e4390ad23ad7451b6d6c": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport e058b01 (reviewed there): Same fix as official cbc0489 (one extra cipher block reserved for EVP_CIPH_WRAP_MODE before zend_string_alloc()); the only differences are false written as 0 and the omitted cosmetic 0-to-false change in zend_string_release_ex(). In the context, the only difference is that the data/aad parameters are not const in 7.4."
+  },
+  "f3a64a495a4e559aea799027b6d0a2542087e8e7": {
+    "branch": "7.3",
+    "note": "Fix proposed from here (remicollet/php-src-security#40): the 7.4 backport b9b27d6 with the path check of stat() in php_sys_stat_ex() (Zend/zend_virtual_cwd.c), which is stat() before 7.4, the converted path being freed on failure; the other hunks are those of 7.4."
+  },
+  "f69bbbad3f1dfae4992b005ae978ec9272203918": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport bf4a8df (reviewed); only a context line differs (7.3 jumps to \"out\" there)."
+  },
+  "027ed383f62a0042d8bdb208d17dfe6cca18efc4": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 0b965cf (reviewed there): Identical to official 0548c4c except that bool/true/false become zend_bool/1/0 for the new header_info.error flag; the no-colon and space-in-header-name checks and the close-stream/goto out error path are the same. The test changes only adapt to 7.4 ('failed to open stream', positional phpt_notify())."
+  },
+  "308b6753aea3b0884f6f4a21af60cb364aa2293a": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport 5418040 (reviewed); only a context line differs."
+  },
+  "6c96518b675a35daf44aaa2d50f03ad08f9fd5e6": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport d407d8a (reviewed there): Same as official cac8f7f, via the 8.0 backport 3615027. strpprintf() replaces ZSTR_INIT_LITERAL() (absent in 7.4), fsock.c differs only in 7.4 context (ZEND_PARSE_PARAMETERS_END_EX), and the tests expect 7.4's lowercase 'unable to connect' warning."
+  },
+  "a9b32f89ec47754e677432aee0cf155b391457be": {
+    "branch": "7.3",
+    "note": "Same change as the 7.4 backport df2ecf3 (reviewed). build_tablename() splits a copy of the table name in 7.3, so the two new error returns also free that copy. As in 7.4 before remicollet/php-src-security#35, php_pgsql_convert() does not release the escaped string when escaping fails (a small request-scoped leak)."
+  },
+  "aa45cca85f508d3b1154c8355132c0d57440e437": {
+    "branch": "7.3",
+    "note": "Same change as the 7.4 backport 3e9d47f (reviewed): the host names of dns_get_record(), dns_get_mx() and their Windows versions are parsed as paths (\"p\", Z_PARAM_PATH), which rejects NUL bytes; only the by-reference argument specifiers around them differ in 7.3 (Z_PARAM_ZVAL_DEREF, \"z/\")."
+  },
+  "884795f8ea31b6e823f9178ffa786ca53cbe1e80": {
+    "branch": "7.3",
+    "note": "The 7.4 backport (reviewed) on 7.3 code: the same unsigned char casts, around 7.3's index-based php_formatted_print() and its other older code, plus the generated pdo_sql_parser.c and url_scanner_ex.c that 7.3 keeps in git. No hunk for _php_math_basetozval()'s whitespace skipping, absent from 7.3, nor for multipart_buffer_headers(), already cast in 7.3. As in 7.4, the -d value check of the CLI, CGI, FPM and phpdbg SAPIs stays uncast (command-line input only)."
+  },
+  "8cc2365c0de7ae0df2bf3bc41e5ffcfbc61068bb": {
+    "branch": "7.3",
+    "note": "Same change as the 7.4 backport dc1f36a (reviewed), without the GH-11274 change 7.4 builds on: in 7.3 every redirect is followed with GET and drops the POST headers, as before. Authorization, Cookie and Proxy-Authorization are stripped on cross-origin redirects through HTTP_WRAPPER_STRIP_AUTH, carried into the redirected request by new_flags; strip_header() replaces 7.3's own version of the old code."
+  },
+  "261d5e6d05eea7f706e40b32942d95705cbd13d0": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport da1db02 (reviewed there): Same change as 0bb308e and identical to the 8.0 backport: has_service_id for DNS/URI/SRV-ID SANs blocks the CN fallback. Only zend_bool/0/1 and the missing HAVE_IPV6_SAN block (not in 7.4) differ."
+  },
+  "4d2b3aaf05ec811b41c4d5faefc0b141e64fcada": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport dbc0299 (reviewed there): Same added and removed lines as 78cc82b (size_t prefix_len and the suffix_len + prefix_len <= subject_len bound). Only the context differs: zend_bool return types."
+  },
+  "38a9b14b42916f93833d65dcc2d03050a369bb1f": {
+    "branch": "7.3",
+    "note": "Same added and removed lines as the 7.4 backport f3432d2 (reviewed); only the context differs (7.3's checksum computation around the change)."
+  },
+  "8ea25e29c2df6dd9c8e90099c5aa8a98351b5d03": {
+    "branch": "7.3",
+    "note": "The 7.4 backport 2af14de (reviewed) on 7.3 code. The error path of mysqlnd_stmt_prepare_read_eof() freed the result with mnd_efree(), but 7.3 allocates results in their memory pool: it now releases the result's connection reference and destroys the pool, as 7.3 does elsewhere, before the official cleanup of what the statement owns. No change to php_mysqlnd_cached_sha2_result_read(), absent from 7.3."
+  },
+  "1ae01e06f242470adafb2a8c6f2ff01681097930": {
+    "branch": "7.3",
+    "note": "No php-src counterpart: a hardening by Ondřej Surý. The OK-packet message bound of 35ba0e1/06e44b6/169e52d (reviewed); the binary row reader rejects a row too short for its NULL bitmap before reading it (null_bytes equals the former (field_count + 9) / 8); the error paths that destroy the fields read so far mark them UNDEF, so that they are not destroyed twice."
+  },
+  "09ce3861bf193c0bbdd87b0cab0fe37839d4aeb9": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport f41d31e (reviewed there): Same check as the official fix 7050cf3, limited to PHAR_SIG_OPENSSL: 7.4 has no OPENSSL_SHA256/SHA512 phar signature types (added in 8.1), so a phar whose .pubkey file exists is refused unless it is signed with OpenSSL. Only the context of the signature switch differs, and has_pubkey is a zend_bool."
+  },
+  "3885687db45b7675c7d357d6031cd821f2d413d0": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 00922d4 (reviewed there): Same escaping as the official fix 1ecb92f for the user and script fields, through fpm_status_escape(), with the single HTML flag of 7.4 (\"encode\", set for the html and xml outputs): the official helper also JSON-escapes, but the 7.4 JSON status output does not escape its other strings either (8.1 added that). 7.4 copies the process record (proc.), and its php_escape_html_entities_ex() has no \"quiet\" argument."
+  },
+  "db78019ba131c6d57579db76367383d4b3cce536": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 1b2a0be (reviewed there): Same added and removed lines as the official fix f986c5c in ext/date; only the zend_test helper differs: the warn_on_startup INI entry used by the test goes into 7.4's own zend_test globals and INI list. zend_test is a test extension."
+  },
+  "bc64b42b72f1bab5dc7f3cc455fca97ab7ff7bc3": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport cb09392 (reviewed there): Same added and removed lines as the official fix 41c0941; only hunk headers and context differ (ps_files_write() returns int in 7.4, \"#if defined(HAVE_PWRITE)\")."
+  },
+  "b6650ff64052ce030dbcb1bb4fa37404936223ca": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport 9035a06 (reviewed there): The default change of the official fix 3f70f66 only (session.upload_progress.enabled is off by default), as its message says: the ban on changing session INI settings at runtime while upload progress is on is left out, because the EOL mitigation of CVE-2026-109618/109619 (official 1d7dec1) already makes php_session_rfc1867_callback() return before any session update (\"|| true\"), so upload progress never writes session data. Checked on this branch's head. Same change as the 8.1 and 8.0 backports 5a80b30 and 62a316a."
+  },
+  "6422895cf27c7501a676ef9a72257a766911c196": {
+    "branch": "7.3",
+    "note": "Same code patch as the 7.4 backport ed1de09 (reviewed there): Same change as the official fix a303f69 (folded header lines appended to a smart_str instead of a new string per line), with 7.4 types: zend_bool and 1/0 for bool, true and false. The removed lines are 7.4's own concatenation code from the GHSA-v8xr-gpvj-cx9g backport (zend_string_alloc() and memcpy(), as zend_string_concat3() does not exist in 7.4)."
+  },
+  "a8cd8000fe5814302758a26f4ad4fd9d392c91e0": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport 0cfca9a (reviewed there): Identical to the official PHP-8.0 fix shipped in 8.0.29, ac4254a plus its follow-up 32c7c43 ('Fix wrong backporting of previous soap patch'): official 126d517 (8.1) resets the connection with Z_CLIENT_*_P macros that only exist from 8.1, while 7.4/8.0 keep httpurl/httpsocket/_use_proxy as dynamic properties and delete them with zend_hash_str_del() as the other error paths of make_http_soap_request() do. The php_hash.h include needed for php_hash_bin2hex() comes with the next commit #16 4043903 (= official 0572448), as in 8.0.29."
+  },
+  "c6ee9a7d0385e4cd6cf9dcd0104dd6714e2a968d": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport 97546df (reviewed there): Identical to the 8.0 backport of d9baa9f (int-returning quoter, returns 0 on overflow); only offsets differ. ZSTR_MAX_LEN exists in 7.4, and the 7.4 callers treat 0 as failure."
+  },
+  "8a4f389396493a43f9de9ba48920b6a82b6d1370": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport 0530cbf (reviewed there): Identical to the 8.0 backport of 69c5f68; only hunk offsets differ."
+  },
+  "f15d1e26160a8175474160907eb6ab7e10090fa0": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport e058b01 (reviewed there): Same fix as official cbc0489 (one extra cipher block reserved for EVP_CIPH_WRAP_MODE before zend_string_alloc()); the only differences are false written as 0 and the omitted cosmetic 0-to-false change in zend_string_release_ex(). In the context, the only difference is that the data/aad parameters are not const in 7.4."
+  },
+  "7bd779da492779200839445ba7d3306a385a23b6": {
+    "branch": "7.2",
+    "note": "Fix proposed from here (remicollet/php-src-security#41): the 7.3 backport f3a64a4 for 7.2, whose PHP_WIN32_IOUTIL_CHECK_PATH_W() macro starts differently. No hunk in php_win32_ioutil_access_w(), compiled out in 7.2: php_win32_ioutil_access() in ioutil.h already runs the checked macro."
+  },
+  "cc2fd37c233b61beae2196d0d5c4232694c9c729": {
+    "branch": "7.2",
+    "note": "The 7.3 backport bb1dd98 (reviewed) on 7.2 code: the same added lines, around 7.2's mysqlnd memory handling (mnd_pemalloc() and MYSQLND_MEMORY_POOL_CHUNK row buffers instead of the result memory pool). f06cbcb then bounds binary rows by the data size (app) of 7.2's chunks."
+  },
+  "1e94fb9d88060d6fe820f6b45c436e94f54ae0e6": {
+    "branch": "7.2",
+    "note": "No php-src counterpart: zend_string_efree() from 7.3, an efree() with assertions, for the backports that use it. No behaviour change."
+  },
+  "8f436430f430d934026bd662a19f5a892a453e9f": {
+    "branch": "7.2",
+    "note": "The 7.3 backport f69bbba (reviewed) on 7.2 code, where the URL fields are char * instead of zend_string; same change."
+  },
+  "b5a435e551bbfe589160bd1ea5321de4cd69e871": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport 0b965cf (reviewed there): Identical to official 0548c4c except that bool/true/false become zend_bool/1/0 for the new header_info.error flag; the no-colon and space-in-header-name checks and the close-stream/goto out error path are the same. The test changes only adapt to 7.4 ('failed to open stream', positional phpt_notify())."
+  },
+  "73991e0b4a49a533913d7afe561ab06d5c99050b": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 308b675 (reviewed) on 7.2 code, where the URL fields are char *: loc_path and new_path are allocated with spprintf() and freed, as in 7.3."
+  },
+  "a4b2ac8bb3c864e92e00005dbbf75eae2f9d3a59": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport d407d8a (reviewed there): Same as official cac8f7f, via the 8.0 backport 3615027. strpprintf() replaces ZSTR_INIT_LITERAL() (absent in 7.4), fsock.c differs only in 7.4 context (ZEND_PARSE_PARAMETERS_END_EX), and the tests expect 7.4's lowercase 'unable to connect' warning."
+  },
+  "253d88beece90d8782544b65b03144cf7d299331": {
+    "branch": "7.2",
+    "note": "The 7.3 backport a9b32f8 (reviewed) on 7.2 code, whose functions declare their variables at the top; same checks. As in 7.3, php_pgsql_convert() does not release the escaped string when escaping fails (a small request-scoped leak)."
+  },
+  "3c973b2e54430fbd99924406a98bd3910e743543": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.3 backport aa45cca (reviewed there): Same change as the 7.4 backport 3e9d47f (reviewed): the host names of dns_get_record(), dns_get_mx() and their Windows versions are parsed as paths (\"p\", Z_PARAM_PATH), which rejects NUL bytes; only the by-reference argument specifiers around them differ in 7.3 (Z_PARAM_ZVAL_DEREF, \"z/\")."
+  },
+  "5a4319ca868d681087764d56e4e4e7045b1dd239": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 884795f (reviewed) on 7.2 code: the same casts around 7.2's older code (char * strings, int lengths, php_url_parse_ex()), and on the !DOCTYPE check of strip_tags(). No hunk for timelib_parse_tz_minutes() and for mb_regex_substitute()'s named groups, absent from 7.2. The -d value check of the SAPIs stays uncast, as in 7.3."
+  },
+  "709119624d6de0499cd28d58e5f5c9e1a8534c64": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 8cc2365 (reviewed) on 7.2 code: the origin comparison uses strcasecmp() on 7.2's char * URL fields, with NULL checks; same change."
+  },
+  "f259c75a494b01dfc777268e2263d44d759c7789": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 1d90324 (reviewed) on 7.2 code: safe_emalloc() for the char * path of the redirect, and the same ZSTR_MAX_LEN bounds in get_http_body() (ZSTR_MAX_LEN exists in 7.2)."
+  },
+  "2975c7c3729b2c8aab60ff6dbbca6fd36547c3d5": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport da1db02 (reviewed there): Same change as 0bb308e and identical to the 8.0 backport: has_service_id for DNS/URI/SRV-ID SANs blocks the CN fallback. Only zend_bool/0/1 and the missing HAVE_IPV6_SAN block (not in 7.4) differ."
+  },
+  "bdd9ba65f6586e4feb9850798ce17336283b55ef": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport dbc0299 (reviewed there): Same added and removed lines as 78cc82b (size_t prefix_len and the suffix_len + prefix_len <= subject_len bound). Only the context differs: zend_bool return types."
+  },
+  "5cee8bfb01e8a86f5795a29acee47edda877a85b": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.3 backport 38a9b14 (reviewed there): Same added and removed lines as the 7.4 backport f3432d2 (reviewed); only the context differs (7.3's checksum computation around the change)."
+  },
+  "f06cbcb20e79c25ba2fc2577f77987b30bdc9b4f": {
+    "branch": "7.2",
+    "note": "No php-src counterpart: in 7.2 the size of a MYSQLND_MEMORY_POOL_CHUNK includes preallocated bytes, so the GHSA-h35g-vwh6-m678 bound of binary rows uses the data size (app), as the text protocol reader of 7.2 already does."
+  },
+  "06a323404e9908eac2e564a3145bde8f0c1dfba2": {
+    "branch": "7.2",
+    "note": "No php-src counterpart: Ondřej Surý's port of the GHSA-r6x9-5r99-36j7 fix to 7.2 (as its NEWS entry says), with the hardenings of 1ae01e0. 256 of its 282 added lines are those of the 7.3 backport 8ea25e2 (reviewed); the others are 7.2 forms of the same checks (an overflow-safe BAIL_IF_NOT_ENOUGH_DATA_EX(), the 13 fixed bytes of a field packet, the info string of a result set header). Two parts of the official fix are missing: the check that the rest of the server scramble is in the greeting packet (php_mysqlnd_greet_read() can read up to 235 bytes past the packet, within its 2048-byte buffer, from a malicious server), and the release of what a statement owns in the error path of mysqlnd_stmt_prepare_read_eof() (a leak)."
+  },
+  "0719d3cac6fe2fa0f73906d2975841d2ac9fb8c7": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport f41d31e (reviewed there): Same check as the official fix 7050cf3, limited to PHAR_SIG_OPENSSL: 7.4 has no OPENSSL_SHA256/SHA512 phar signature types (added in 8.1), so a phar whose .pubkey file exists is refused unless it is signed with OpenSSL. Only the context of the signature switch differs, and has_pubkey is a zend_bool."
+  },
+  "b2fdf24d77796b6b7b70f294be6c23e3d3a9d55e": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 3885687 (reviewed) on 7.2 code, which has no fpm_status_export_to_zval() (fpm_get_status() came in 7.3); same escaping in fpm_status_handle_request()."
+  },
+  "a9a85ddc4be3ed78b2f34120dfc1bce0432cd8f6": {
+    "branch": "7.2",
+    "note": "The 7.3 backport db78019 (reviewed) on 7.2 code; only the zend_test helper differs (atoi() instead of zend_ini_parse_bool(), which 7.2 lacks). zend_test is a test extension."
+  },
+  "53d2d1341188871582751ed8a2d119d8ef673fc5": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport cb09392 (reviewed there): Same added and removed lines as the official fix 41c0941; only hunk headers and context differ (ps_files_write() returns int in 7.4, \"#if defined(HAVE_PWRITE)\")."
+  },
+  "7a340c638e87474e0dbc1297ca904babd27362f5": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport 9035a06 (reviewed there): The default change of the official fix 3f70f66 only (session.upload_progress.enabled is off by default), as its message says: the ban on changing session INI settings at runtime while upload progress is on is left out, because the EOL mitigation of CVE-2026-109618/109619 (official 1d7dec1) already makes php_session_rfc1867_callback() return before any session update (\"|| true\"), so upload progress never writes session data. Checked on this branch's head. Same change as the 8.1 and 8.0 backports 5a80b30 and 62a316a."
+  },
+  "1125e1a57eefd3c87140457073b35b320a88a01d": {
+    "branch": "7.2",
+    "note": "The 7.3 backport 9516ee4 (identical to the official fix cb68a63) on 7.2 code: strcasecmp() on 7.2's char * schemes instead of zend_string_equals_literal_ci(); same change."
+  },
+  "c56693ef6b7f5eb1a9d1d632ac55cab87bf3410f": {
+    "branch": "7.2",
+    "note": "Same code patch as the 7.4 backport ed1de09 (reviewed there): Same change as the official fix a303f69 (folded header lines appended to a smart_str instead of a new string per line), with 7.4 types: zend_bool and 1/0 for bool, true and false. The removed lines are 7.4's own concatenation code from the GHSA-v8xr-gpvj-cx9g backport (zend_string_alloc() and memcpy(), as zend_string_concat3() does not exist in 7.4)."
   }
 }
