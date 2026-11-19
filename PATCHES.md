@@ -21,13 +21,34 @@ The patch level 2 base, [51dc7cf](https://github.com/remicollet/php-src-security
 
 ### PHP 8.1.34 Patch Level 3 (8.1.34-pl3)
 
-Source: [remicollet/php-src-security@af0f042](https://github.com/remicollet/php-src-security/commit/af0f042ffdae63ca55237e3d4af8bc6069b7b291)
-(branch `PHP-8.1-security-backports`): the 24 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
-Verification: [verification/8.1.md](verification/8.1.md), 38 commits: 2 adapted, 25 identical, 3 identical code, NEWS/tests differ, 1 no official commit, 6 no official commit, NEWS/tests only, 1 same changes, context differs.
+Source: [remicollet/php-src-security@64a35bc](https://github.com/remicollet/php-src-security/commit/64a35bc319e15ab6a2670637bb125586d08537c1)
+(branch `PHP-8.1-security-backports`): 37 security fixes: the 24 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 8.1); plus the corrections of the backports that the review of patch level 2 flagged.
+Verification: [verification/8.1.md](verification/8.1.md), 56 commits: 3 adapted, 35 identical, 4 identical code, NEWS/tests differ, 2 no official commit, 10 no official commit, NEWS/tests only, 2 same changes, context differs.
+
+Remarks from the review:
+
+- GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
+| [GHSA-5j3f-64r7-f564](https://github.com/php/php-src/security/advisories/GHSA-5j3f-64r7-f564)<br>CVE-2026-129538 | medium | CGI: PHP-CGI out-of-bounds read and write during PATH_INFO correction | 8.2.36 | [4c94b3c](https://github.com/remicollet/php-src-security/commit/4c94b3ce3ff6e9e0290825198bb6f4c9bb3779c6)<br>identical |
+| [GHSA-gr4f-wgx5-jpfv](https://github.com/php/php-src/security/advisories/GHSA-gr4f-wgx5-jpfv)<br>CVE-2026-129496 | critical | Date: Timezone cache use-after-free can lead to remote code execution | 8.2.36 | [b3a6786](https://github.com/remicollet/php-src-security/commit/b3a6786b50a3df7df665b201d45aa8dbb45b9e0e)<br>same changes, context differs |
+| [GHSA-qc49-hpvq-g2w6](https://github.com/php/php-src/security/advisories/GHSA-qc49-hpvq-g2w6)<br>CVE-2026-129289 | critical | FPM: PHP-FPM request smuggling through an unread HTTP request body | 8.2.36 | [1308369](https://github.com/remicollet/php-src-security/commit/130836964c5c26b2421891a706ebad5f0b14f713)<br>identical |
+| [GHSA-3mg3-cr28-46gc](https://github.com/php/php-src/security/advisories/GHSA-3mg3-cr28-46gc)<br>CVE-2026-129292 | medium | FPM: PHP-FPM status endpoint XSS via unescaped user and script fields | 8.2.36 | [02629c6](https://github.com/remicollet/php-src-security/commit/02629c6960c31adea93aa6a9e8acc69e835f3681)<br>identical |
+| [GHSA-jm4m-qfqx-967m](https://github.com/php/php-src/security/advisories/GHSA-jm4m-qfqx-967m)<br>CVE-2026-129291 | high | FPM: PHP-FPM epoll use-after-free can lead to local privilege escalation | 8.2.36 | [11400f4](https://github.com/remicollet/php-src-security/commit/11400f4539ae94dea40824d2110a3917c474c649)<br>identical |
+| [GHSA-68fq-fh7h-f8gr](https://github.com/php/php-src/security/advisories/GHSA-68fq-fh7h-f8gr)<br>CVE-2026-128090 | high | Phar: PHAR OpenSSL signature bypass via algorithm downgrade | 8.2.36 | [8828756](https://github.com/remicollet/php-src-security/commit/88287560c4a3945ad189e6bbf2436165fb73a767)<br>identical |
+| [GHSA-fm2m-fjf5-v3cp](https://github.com/php/php-src/security/advisories/GHSA-fm2m-fjf5-v3cp)<br>CVE-2026-126714 | critical | Session: Partially overwritten session files can lead to remote code execution | 8.2.36 | [9c5d97f](https://github.com/remicollet/php-src-security/commit/9c5d97f5bf9548b139f94dadf9d5471b01ecfd3f)<br>identical |
+| [GHSA-658j-r8rw-q6mx](https://github.com/php/php-src/security/advisories/GHSA-658j-r8rw-q6mx)<br>CVE-2026-115560 | critical | Session: Session serializer mismatch can lead to remote code execution (mitigation: session.upload_progress.enabled is now off by default) | 8.2.36 | [5a80b30](https://github.com/remicollet/php-src-security/commit/5a80b303fc9942cdd3483f9338c99330fb32e36f)<br>adapted |
+| [GHSA-q23r-hr55-xmpg](https://github.com/php/php-src/security/advisories/GHSA-q23r-hr55-xmpg)<br>CVE-2026-15353 | medium | SOAP: SOAP information disclosure through malformed array dimensions | 8.2.36 | [34911d0](https://github.com/remicollet/php-src-security/commit/34911d08770ae9f9659d5a0b8c8b61ae7b6ced3b)<br>identical |
+| [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [47f8976](https://github.com/remicollet/php-src-security/commit/47f8976103f6022dc10d12eed151b2bc2980ac72)<br>identical |
+| [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [061a296](https://github.com/remicollet/php-src-security/commit/061a2967440b9fab45946765f387546d3055b41f)<br>identical |
+| [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [e371eee](https://github.com/remicollet/php-src-security/commit/e371eee5ce835619e52fb9acbed9f79f1235d853)<br>identical |
+| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [450c97a](https://github.com/remicollet/php-src-security/commit/450c97a418b20fb0dd6f910dadb421fb3f29465d)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234)<br>reviewed |
+
+Other fixes:
+
+- MySQLnd: an OK packet whose message goes past the end of the packet is rejected instead of being read on into the buffer, a hardening by Ondřej Surý without php-src counterpart ([35ba0e1](https://github.com/remicollet/php-src-security/commit/35ba0e10f96a94cf2e8f95d4976c32430b2025ea), reviewed).
 
 ### PHP 8.1.34 Patch Level 2 (8.1.34-pl2)
 
@@ -88,14 +109,37 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 
 ### PHP 8.0.30 Patch Level 3 (8.0.30-pl3)
 
-Source: [remicollet/php-src-security@f55d717](https://github.com/remicollet/php-src-security/commit/f55d717e000b65890645a302f0ddde7e3cd04881)
-(branch `PHP-8.0-security-backports`): the 53 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
-Verification: [verification/8.0.md](verification/8.0.md), 95 commits: 22 adapted, 35 identical, 16 identical code, NEWS/tests differ, 3 no official commit, 15 no official commit, NEWS/tests only, 4 same changes, context differs.
+Source: [remicollet/php-src-security@7171342](https://github.com/remicollet/php-src-security/commit/7171342a9f14026653a34e1cf6029ca46217ee19)
+(branch `PHP-8.0-security-backports`): 66 security fixes: the 53 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 8.0); plus the corrections of the backports that the review of patch level 2 flagged.
+Verification: [verification/8.0.md](verification/8.0.md), 117 commits: 26 adapted, 43 identical, 18 identical code, NEWS/tests differ, 4 no official commit, 22 no official commit, NEWS/tests only, 4 same changes, context differs.
+
+Remarks from the review:
+
+- GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
+- GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page of 8.0 escapes none of its strings, as before (8.1 added that).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
+| [GHSA-5j3f-64r7-f564](https://github.com/php/php-src/security/advisories/GHSA-5j3f-64r7-f564)<br>CVE-2026-129538 | medium | CGI: PHP-CGI out-of-bounds read and write during PATH_INFO correction | 8.2.36 | [ed780cf](https://github.com/remicollet/php-src-security/commit/ed780cf394e39241bb8dbe14a50245751a908f41)<br>identical |
+| [GHSA-gr4f-wgx5-jpfv](https://github.com/php/php-src/security/advisories/GHSA-gr4f-wgx5-jpfv)<br>CVE-2026-129496 | critical | Date: Timezone cache use-after-free can lead to remote code execution | 8.2.36 | [3ea77df](https://github.com/remicollet/php-src-security/commit/3ea77dfbe4f451599d62ed8192720a81c1c747df)<br>adapted |
+| [GHSA-qc49-hpvq-g2w6](https://github.com/php/php-src/security/advisories/GHSA-qc49-hpvq-g2w6)<br>CVE-2026-129289 | critical | FPM: PHP-FPM request smuggling through an unread HTTP request body | 8.2.36 | [51ec317](https://github.com/remicollet/php-src-security/commit/51ec3171910cc4c9aa81bd96cadee1d99feb98f5)<br>identical |
+| [GHSA-3mg3-cr28-46gc](https://github.com/php/php-src/security/advisories/GHSA-3mg3-cr28-46gc)<br>CVE-2026-129292 | medium | FPM: PHP-FPM status endpoint XSS via unescaped user and script fields | 8.2.36 | [005bde3](https://github.com/remicollet/php-src-security/commit/005bde3e8721e7b378bd1121f7fc95161ae7d60c)<br>adapted |
+| [GHSA-jm4m-qfqx-967m](https://github.com/php/php-src/security/advisories/GHSA-jm4m-qfqx-967m)<br>CVE-2026-129291 | high | FPM: PHP-FPM epoll use-after-free can lead to local privilege escalation | 8.2.36 | [7074465](https://github.com/remicollet/php-src-security/commit/7074465966ec994202c9c340b86e76ca0470db99)<br>identical |
+| [GHSA-68fq-fh7h-f8gr](https://github.com/php/php-src/security/advisories/GHSA-68fq-fh7h-f8gr)<br>CVE-2026-128090 | high | Phar: PHAR OpenSSL signature bypass via algorithm downgrade | 8.2.36 | [1a73af7](https://github.com/remicollet/php-src-security/commit/1a73af7b2445c7c5837ef66e9818c51739bb4e94)<br>adapted |
+| [GHSA-fm2m-fjf5-v3cp](https://github.com/php/php-src/security/advisories/GHSA-fm2m-fjf5-v3cp)<br>CVE-2026-126714 | critical | Session: Partially overwritten session files can lead to remote code execution | 8.2.36 | [7885efe](https://github.com/remicollet/php-src-security/commit/7885efe2c204c8987403696a61be24068261d495)<br>identical |
+| [GHSA-658j-r8rw-q6mx](https://github.com/php/php-src/security/advisories/GHSA-658j-r8rw-q6mx)<br>CVE-2026-115560 | critical | Session: Session serializer mismatch can lead to remote code execution (mitigation: session.upload_progress.enabled is now off by default) | 8.2.36 | [62a316a](https://github.com/remicollet/php-src-security/commit/62a316a5ecae7852bf58f139d9d1ab968f76062e)<br>adapted |
+| [GHSA-q23r-hr55-xmpg](https://github.com/php/php-src/security/advisories/GHSA-q23r-hr55-xmpg)<br>CVE-2026-15353 | medium | SOAP: SOAP information disclosure through malformed array dimensions | 8.2.36 | [921fa63](https://github.com/remicollet/php-src-security/commit/921fa63e52f15c9bcbc431d7b19ffa60fe051a1a)<br>identical |
+| [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [57d625e](https://github.com/remicollet/php-src-security/commit/57d625e81be43c2f21fcfbde4d508220f50ef2a5)<br>identical |
+| [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [19ba875](https://github.com/remicollet/php-src-security/commit/19ba8751e0f5207b77cc1b23f313acd4196eed4c)<br>identical |
+| [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [ff9a660](https://github.com/remicollet/php-src-security/commit/ff9a660811d1dfc1062ef9dc1e6cd1ba8047e11b)<br>identical |
+| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [4ca9a94](https://github.com/remicollet/php-src-security/commit/4ca9a94944efdb64d19d10809d84d62974bc1f94)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3)<br>reviewed |
+
+Other fixes:
+
+- MySQLnd: an OK packet whose message goes past the end of the packet is rejected instead of being read on into the buffer, a hardening by Ondřej Surý without php-src counterpart ([06e44b6](https://github.com/remicollet/php-src-security/commit/06e44b6a7aff100a5e8523ea1846b33a85588d7e), reviewed).
+- FPM: Fixed bug GH-12705 (Segmentation fault in fpm_status_export_to_zval) (8.1.27; [9a1ef81](https://github.com/remicollet/php-src-security/commit/9a1ef8126644cd01840f7f3af13d5aaca6b47982), identical code).
 
 ### PHP 8.0.30 Patch Level 2 (8.0.30-pl2)
 
@@ -188,17 +232,37 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 
 ### PHP 7.4.33 Patch Level 3 (7.4.33-pl3)
 
-Source: [remicollet/php-src-security@397aa20](https://github.com/remicollet/php-src-security/commit/397aa202cacf70ad4e3b0bfc1618f9ccdeb335b1)
-(branch `PHP-7.4-security-backports`): the 58 security fixes of patch level 2, with the corrections of the backports that its review flagged (see the remarks of patch level 2). No new php-src security fix.
-Verification: [verification/7.4.md](verification/7.4.md), 119 commits: 38 adapted, 27 identical, 13 identical code, NEWS/tests differ, 6 no official commit, 29 no official commit, NEWS/tests only, 6 same changes, context differs.
+Source: [remicollet/php-src-security@34a45b9](https://github.com/remicollet/php-src-security/commit/34a45b97de556bf436ed41b9ae2e10004973b339)
+(branch `PHP-7.4-security-backports`): 71 security fixes: the 58 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 7.4); plus the corrections of the backports that the review of patch level 2 flagged.
+Verification: [verification/7.4.md](verification/7.4.md), 145 commits: 44 adapted, 33 identical, 15 identical code, NEWS/tests differ, 7 no official commit, 40 no official commit, NEWS/tests only, 6 same changes, context differs.
+
+Remarks from the review:
+
+- GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
+- GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page of 7.4 escapes none of its strings, as before (8.1 added that).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
+| [GHSA-5j3f-64r7-f564](https://github.com/php/php-src/security/advisories/GHSA-5j3f-64r7-f564)<br>CVE-2026-129538 | medium | CGI: PHP-CGI out-of-bounds read and write during PATH_INFO correction | 8.2.36 | [39bab55](https://github.com/remicollet/php-src-security/commit/39bab551ef8048dc258a3f3263f198ae6cdcdda2)<br>identical |
+| [GHSA-gr4f-wgx5-jpfv](https://github.com/php/php-src/security/advisories/GHSA-gr4f-wgx5-jpfv)<br>CVE-2026-129496 | critical | Date: Timezone cache use-after-free can lead to remote code execution | 8.2.36 | [1b2a0be](https://github.com/remicollet/php-src-security/commit/1b2a0beddcb339c2833030ab88fce55001b19321)<br>adapted |
+| [GHSA-qc49-hpvq-g2w6](https://github.com/php/php-src/security/advisories/GHSA-qc49-hpvq-g2w6)<br>CVE-2026-129289 | critical | FPM: PHP-FPM request smuggling through an unread HTTP request body | 8.2.36 | [a539b19](https://github.com/remicollet/php-src-security/commit/a539b19cdc1c7d807dc0774a3168dcd20107ac13)<br>identical |
+| [GHSA-3mg3-cr28-46gc](https://github.com/php/php-src/security/advisories/GHSA-3mg3-cr28-46gc)<br>CVE-2026-129292 | medium | FPM: PHP-FPM status endpoint XSS via unescaped user and script fields | 8.2.36 | [00922d4](https://github.com/remicollet/php-src-security/commit/00922d4f0162cd16aacda20fe23b2bece79788f5)<br>adapted |
+| [GHSA-jm4m-qfqx-967m](https://github.com/php/php-src/security/advisories/GHSA-jm4m-qfqx-967m)<br>CVE-2026-129291 | high | FPM: PHP-FPM epoll use-after-free can lead to local privilege escalation | 8.2.36 | [cd7dda6](https://github.com/remicollet/php-src-security/commit/cd7dda6f6f2365911cf628cf663241b4fc68e418)<br>identical |
+| [GHSA-68fq-fh7h-f8gr](https://github.com/php/php-src/security/advisories/GHSA-68fq-fh7h-f8gr)<br>CVE-2026-128090 | high | Phar: PHAR OpenSSL signature bypass via algorithm downgrade | 8.2.36 | [f41d31e](https://github.com/remicollet/php-src-security/commit/f41d31eeb93e3009a739a3ac25989cefe1968253)<br>adapted |
+| [GHSA-fm2m-fjf5-v3cp](https://github.com/php/php-src/security/advisories/GHSA-fm2m-fjf5-v3cp)<br>CVE-2026-126714 | critical | Session: Partially overwritten session files can lead to remote code execution | 8.2.36 | [cb09392](https://github.com/remicollet/php-src-security/commit/cb09392cbfc8b56ab3c717b661813bd03751c09d)<br>adapted |
+| [GHSA-658j-r8rw-q6mx](https://github.com/php/php-src/security/advisories/GHSA-658j-r8rw-q6mx)<br>CVE-2026-115560 | critical | Session: Session serializer mismatch can lead to remote code execution (mitigation: session.upload_progress.enabled is now off by default) | 8.2.36 | [9035a06](https://github.com/remicollet/php-src-security/commit/9035a0672e35e2f9c73f4aed8147e240f23ce9ad)<br>adapted |
+| [GHSA-q23r-hr55-xmpg](https://github.com/php/php-src/security/advisories/GHSA-q23r-hr55-xmpg)<br>CVE-2026-15353 | medium | SOAP: SOAP information disclosure through malformed array dimensions | 8.2.36 | [ed597fa](https://github.com/remicollet/php-src-security/commit/ed597fa1e8dda50784d379b0797d9a3bd03d07f9)<br>identical |
+| [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [0289ac3](https://github.com/remicollet/php-src-security/commit/0289ac37e28d8be9937328980e6b82ad97937c43)<br>identical |
+| [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [09edf34](https://github.com/remicollet/php-src-security/commit/09edf3451bc81b6023e362748c58decf7b1cee0b)<br>identical |
+| [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [ed1de09](https://github.com/remicollet/php-src-security/commit/ed1de09f6bd108d32e21417dbe9ac1bea232d6d3)<br>adapted |
+| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [7c40f3b](https://github.com/remicollet/php-src-security/commit/7c40f3bbdfc5865c7f3e9418d62e95ea83b5a0cc)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4)<br>reviewed |
 
 Other fixes:
 
+- MySQLnd: an OK packet whose message goes past the end of the packet is rejected instead of being read on into the buffer, a hardening by Ondřej Surý without php-src counterpart ([169e52d](https://github.com/remicollet/php-src-security/commit/169e52d0e8acddd9b0bccb623c03f3804e53a379), reviewed).
+- FPM: Fixed bug GH-12705 (Segmentation fault in fpm_status_export_to_zval) (8.1.27; [0855d6b](https://github.com/remicollet/php-src-security/commit/0855d6b67ed5ec8b90af0b4594beff2e77879b5f), identical code).
 - Date: the DatePeriod constructor restores its error handling when the DateInterval is not initialized, completing the backport of the double `__construct()` leak fix of 8.2.33 ([575c10c](https://github.com/remicollet/php-src-security/commit/575c10c4e0c9da6555557bc26fd93e52edeaf1fd)).
 
 ### PHP 7.4.33 Patch Level 2 (7.4.33-pl2)

@@ -305,5 +305,61 @@
   "575c10c4e0c9da6555557bc26fd93e52edeaf1fd": {
     "branch": "7.4",
     "note": "Fix proposed from here (remicollet/php-src-security#35) for the backport of 2d86f8c (leak on double DatePeriod::__construct() call): in 7.4, DATE_CHECK_INITIALIZED() returns from inside the EH_THROW scope of the constructor, so the error handling was never restored and every later warning of the request was thrown. This restores it before returning, as the other error paths of the constructor do, with the same warning text; adds a test."
+  },
+  "35ba0e10f96a94cf2e8f95d4976c32430b2025ea": {
+    "branch": "8.1",
+    "note": "No php-src counterpart: a hardening by Ondřej Surý, the same on 8.1, 8.0 and 7.4 (06e44b6 and 169e52d). php_mysqlnd_ok_read() bounded the length of the OK message by the read buffer, not by the packet, so a server could have it copy bytes left in the buffer past the packet body (a NULL length marker too); it now fails with \"Premature end of data\" when the length goes past the body. php_mysqlnd_net_field_length() only advances within the remaining body, so the subtraction cannot wrap. Adds a fake-server test."
+  },
+  "06e44b6a7aff100a5e8523ea1846b33a85588d7e": {
+    "branch": "8.0",
+    "note": "No php-src counterpart: a hardening by Ondřej Surý, the same on 8.1, 8.0 and 7.4 (35ba0e1 and 169e52d). php_mysqlnd_ok_read() bounded the length of the OK message by the read buffer, not by the packet, so a server could have it copy bytes left in the buffer past the packet body (a NULL length marker too); it now fails with \"Premature end of data\" when the length goes past the body. php_mysqlnd_net_field_length() only advances within the remaining body, so the subtraction cannot wrap. Adds a fake-server test."
+  },
+  "169e52d0e8acddd9b0bccb623c03f3804e53a379": {
+    "branch": "7.4",
+    "note": "No php-src counterpart: a hardening by Ondřej Surý, the same on 8.1, 8.0 and 7.4 (35ba0e1 and 06e44b6). php_mysqlnd_ok_read() bounded the length of the OK message by the read buffer, not by the packet, so a server could have it copy bytes left in the buffer past the packet body (a NULL length marker too); it now fails with \"Premature end of data\" when the length goes past the body. php_mysqlnd_net_field_length() only advances within the remaining body, so the subtraction cannot wrap. Adds a fake-server test."
+  },
+  "5a80b303fc9942cdd3483f9338c99330fb32e36f": {
+    "branch": "8.1",
+    "note": "The default change of the official fix 3f70f66 only (session.upload_progress.enabled is off by default), as its message says: the ban on changing session INI settings at runtime while upload progress is on is left out, because the EOL mitigation of CVE-2026-109618/109619 (official 1d7dec1) already makes php_session_rfc1867_callback() return before any session update (\"|| true\"), so upload progress never writes session data. Checked on this branch's head. Same change as the 8.0 and 7.4 backports 62a316a and 9035a06."
+  },
+  "62a316a5ecae7852bf58f139d9d1ab968f76062e": {
+    "branch": "8.0",
+    "note": "The default change of the official fix 3f70f66 only (session.upload_progress.enabled is off by default), as its message says: the ban on changing session INI settings at runtime while upload progress is on is left out, because the EOL mitigation of CVE-2026-109618/109619 (official 1d7dec1) already makes php_session_rfc1867_callback() return before any session update (\"|| true\"), so upload progress never writes session data. Checked on this branch's head. Same change as the 8.1 and 7.4 backports 5a80b30 and 9035a06."
+  },
+  "9035a0672e35e2f9c73f4aed8147e240f23ce9ad": {
+    "branch": "7.4",
+    "note": "The default change of the official fix 3f70f66 only (session.upload_progress.enabled is off by default), as its message says: the ban on changing session INI settings at runtime while upload progress is on is left out, because the EOL mitigation of CVE-2026-109618/109619 (official 1d7dec1) already makes php_session_rfc1867_callback() return before any session update (\"|| true\"), so upload progress never writes session data. Checked on this branch's head. Same change as the 8.1 and 8.0 backports 5a80b30 and 62a316a."
+  },
+  "1a73af7b2445c7c5837ef66e9818c51739bb4e94": {
+    "branch": "8.0",
+    "note": "Same check as the official fix 7050cf3, limited to PHAR_SIG_OPENSSL: 8.0 has no OPENSSL_SHA256/SHA512 phar signature types (added in 8.1), so a phar whose .pubkey file exists is refused unless it is signed with OpenSSL. Only the context of the signature switch differs."
+  },
+  "f41d31eeb93e3009a739a3ac25989cefe1968253": {
+    "branch": "7.4",
+    "note": "Same check as the official fix 7050cf3, limited to PHAR_SIG_OPENSSL: 7.4 has no OPENSSL_SHA256/SHA512 phar signature types (added in 8.1), so a phar whose .pubkey file exists is refused unless it is signed with OpenSSL. Only the context of the signature switch differs, and has_pubkey is a zend_bool."
+  },
+  "005bde3e8721e7b378bd1121f7fc95161ae7d60c": {
+    "branch": "8.0",
+    "note": "Same escaping as the official fix 1ecb92f for the user and script fields, through fpm_status_escape(), with the single HTML flag of 8.0 (\"encode\", set for the html and xml outputs): the official helper also JSON-escapes, but the 8.0 JSON status output does not escape its other strings either (8.1 added that). The other changes are the official ones."
+  },
+  "00922d4f0162cd16aacda20fe23b2bece79788f5": {
+    "branch": "7.4",
+    "note": "Same escaping as the official fix 1ecb92f for the user and script fields, through fpm_status_escape(), with the single HTML flag of 7.4 (\"encode\", set for the html and xml outputs): the official helper also JSON-escapes, but the 7.4 JSON status output does not escape its other strings either (8.1 added that). 7.4 copies the process record (proc.), and its php_escape_html_entities_ex() has no \"quiet\" argument."
+  },
+  "3ea77dfbe4f451599d62ed8192720a81c1c747df": {
+    "branch": "8.0",
+    "note": "Same added and removed lines as the official fix f986c5c in ext/date; only the zend_test helper differs: the warn_on_startup INI entry used by the test goes into 8.0's own zend_test globals and INI list. zend_test is a test extension."
+  },
+  "1b2a0beddcb339c2833030ab88fce55001b19321": {
+    "branch": "7.4",
+    "note": "Same added and removed lines as the official fix f986c5c in ext/date; only the zend_test helper differs: the warn_on_startup INI entry used by the test goes into 7.4's own zend_test globals and INI list. zend_test is a test extension."
+  },
+  "cb09392cbfc8b56ab3c717b661813bd03751c09d": {
+    "branch": "7.4",
+    "note": "Same added and removed lines as the official fix 41c0941; only hunk headers and context differ (ps_files_write() returns int in 7.4, \"#if defined(HAVE_PWRITE)\")."
+  },
+  "ed1de09f6bd108d32e21417dbe9ac1bea232d6d3": {
+    "branch": "7.4",
+    "note": "Same change as the official fix a303f69 (folded header lines appended to a smart_str instead of a new string per line), with 7.4 types: zend_bool and 1/0 for bool, true and false. The removed lines are 7.4's own concatenation code from the GHSA-v8xr-gpvj-cx9g backport (zend_string_alloc() and memcpy(), as zend_string_concat3() does not exist in 7.4)."
   }
 }

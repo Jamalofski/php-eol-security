@@ -2,7 +2,7 @@
   "8.1": {
     "php_src_repo": "remicollet/php-src-security",
     "php_src_branch": "PHP-8.1-security-backports",
-    "php_src_sha": "af0f042ffdae63ca55237e3d4af8bc6069b7b291",
+    "php_src_sha": "64a35bc319e15ab6a2670637bb125586d08537c1",
     "base_tag": "php-8.1.34",
     "base_commit": "51dc7cfb926ca4ea38f6574618ad0db9868c15c1",
     "base_version": "8.1.34",
@@ -18,7 +18,7 @@
   "8.0": {
     "php_src_repo": "remicollet/php-src-security",
     "php_src_branch": "PHP-8.0-security-backports",
-    "php_src_sha": "f55d717e000b65890645a302f0ddde7e3cd04881",
+    "php_src_sha": "7171342a9f14026653a34e1cf6029ca46217ee19",
     "base_tag": "php-8.0.30",
     "base_commit": "8213daa932be1c2ae04726233e4e56e5df63980e",
     "base_version": "8.0.30",
@@ -34,7 +34,7 @@
   "7.4": {
     "php_src_repo": "remicollet/php-src-security",
     "php_src_branch": "PHP-7.4-security-backports",
-    "php_src_sha": "397aa202cacf70ad4e3b0bfc1618f9ccdeb335b1",
+    "php_src_sha": "34a45b97de556bf436ed41b9ae2e10004973b339",
     "base_tag": "php-7.4.33",
     "base_commit": "dca8d5565b947270a29f232bc54efd9df3b92b94",
     "base_version": "7.4.33",
