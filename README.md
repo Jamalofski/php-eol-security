@@ -42,11 +42,11 @@ team published for these branches.
 | | |
 |---|---|
 | Sources | the last official release of the branch plus the official php-src security fixes published since, as backported by Remi Collet and Ondřej Surý in [remicollet/php-src-security](https://github.com/remicollet/php-src-security) and checked commit by commit against php-src (see below); pinned per branch in [versions.json](versions.json). The only change made here is the version string |
-| Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7.4 has no such entry) |
+| Build Provider | `Jamal TANTAOUI (unofficial EOL security build) - https://github.com/Jamalofski/php-eol-security` (8.0 and later; PHP 7 has no such entry) |
 | Toolchain | the one of the official builds of the branch (table above), on `windows-2022` |
-| Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for 7.4, the workflow adds back OCI8 and PDO_OCI, which the 7.4 releases shipped and the builder no longer enables |
+| Build scripts | the official [php/php-windows-builder](https://github.com/php/php-windows-builder) (pinned commit): same configure flags and PGO as the official releases of the branch; for PHP 7, the workflow adds back OCI8 and PDO_OCI, which the PHP 7 releases shipped and the builder no longer enables |
 | Oracle SDK | OCI8 and PDO_OCI are built against the current Oracle Instant Client SDK, as the official builder does |
-| Dependencies | official packages from downloads.php.net for the branch |
+| Dependencies | official packages from downloads.php.net for the branch. The package series of 7.3 and 7.2 stopped in 2020-2021 (OpenSSL 1.1.1l and 1.1.1g, curl 7.70.0 and 7.67.0, zlib 1.2.11): their builds take the newer vc15 packages of 7.4 for OpenSSL (1.1.1s, the last vc15 build published), curl, nghttp2, libssh2, libxml2 and zlib (`deps_overrides` in [versions.json](versions.json)), and the build checks the versions the binaries load |
 | SBOM | each binary zip comes with its CycloneDX SBOM (`.cdx.json`), produced by the official builder (from patch level 2; patch level 2 also had an SPDX copy) |
 | Variants | x64 / x86, TS / NTS |
 
@@ -108,10 +108,9 @@ issue labelled `upstream-watch` when:
 
 - Only the fixes listed in [PATCHES.md](PATCHES.md). Bundled libraries stay at the
   versions of the branch (OpenSSL 1.1.1, itself end-of-life, among others).
-- No build of PHP 7.3 or older yet. Until 2026-11-19, Remi Collet's 7.3 and 7.2 branches
-  lacked about twenty security fixes of 7.4 that apply to their code (among them
-  GHSA-xr7j-rvgx-xq5p and GHSA-vvx9-73fr-5jjx in OpenSSL, GHSA-62xp-839h-2637 in FastCGI,
-  GHSA-j3wh-g957-2m85 in Phar). They have caught up since; they are not verified here yet.
+- No build of PHP 7.1 or older: their backport branches are not kept up to date. Remi
+  Collet's 7.3 and 7.2 branches lacked about twenty security fixes of 7.4 until they caught
+  up on 2026-11-19; their first patch level is in preparation.
 - Migrating to a supported PHP version remains the real fix.
 - Provided as is, without warranty.
 
