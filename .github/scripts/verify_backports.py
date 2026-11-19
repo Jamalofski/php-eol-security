@@ -29,6 +29,7 @@ import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -78,6 +79,9 @@ def official_commits():
     """Commits of the branches and tags of php/php-src, from a clone without trees (about
     50 MB) kept in the temporary directory and fetched again at each run."""
     path = os.path.join(tempfile.gettempdir(), 'php-src-official.git')
+    if os.path.isdir(path) and not os.path.isfile(os.path.join(path, 'HEAD')):
+        # Left incomplete by a cleanup of the temporary directory; git packs are read-only
+        shutil.rmtree(path, onexc=lambda func, p, _: (os.chmod(p, 0o600), func(p)))
     if os.path.isdir(path):
         subprocess.run(['git', '-C', path, 'fetch', '--quiet', '--prune', 'origin',
                         '+refs/heads/*:refs/heads/*', '+refs/tags/*:refs/tags/*'], check=True)
