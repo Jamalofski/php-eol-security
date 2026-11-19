@@ -20,8 +20,9 @@ named "PHP 8.1.34 Patch Level 1", "Patch Level 2"…
 - Which zip: Thread Safe (`php-<version>-Win32-…`) for Apache with mod_php, as only it
   contains the Apache module; NTS (`php-<version>-nts-Win32-…`) for IIS, nginx or the
   command line. Take x64 or x86 to match your server. The devel packs are only for
-  building extensions. From patch level 3, releases no longer carry the debug and test
-  packs, which almost nobody downloaded.
+  building extensions. Since patch level 3 of 8.1, 8.0 and 7.4 and patch level 1 of 7.3
+  and 7.2, releases no longer carry the debug and test packs, which almost nobody
+  downloaded.
 
 Current patch levels. Each one carries the php-src security fixes published since the
 end of life of the branch, as backported by Remi Collet and Ondřej Surý and listed in
@@ -33,9 +34,12 @@ end of life of the branch, as backported by Remi Collet and Ondřej Surý and li
 | 8.1 | **PHP 8.1.34 Patch Level 3** (`8.1.34-pl3`) | `vs16` (MSVC v142, Visual C++ 2019) |
 | 8.0 | **PHP 8.0.30 Patch Level 3** (`8.0.30-pl3`) | `vs16` (MSVC v142, Visual C++ 2019) |
 | 7.4 | **PHP 7.4.33 Patch Level 3** (`7.4.33-pl3`) | `vc15` (MSVC v141, Visual C++ 2017) |
+| 7.3 | **PHP 7.3.33 Patch Level 1** (`7.3.33-pl1`) | `vc15` (MSVC v141, Visual C++ 2017) |
+| 7.2 | **PHP 7.2.34 Patch Level 1** (`7.2.34-pl1`) | `vc15` (MSVC v141, Visual C++ 2017) |
 
-Patch level 1 carried only the fix for CVE-2026-109618 and CVE-2026-109619 that the PHP
-team published for these branches.
+For 8.1, 8.0 and 7.4, patch level 1 carried only the fix for CVE-2026-109618 and
+CVE-2026-109619 that the PHP team published for these branches. 7.3 and 7.2 start at
+patch level 1 with all the backports of their branch.
 
 ## How it is built
 
@@ -108,9 +112,7 @@ issue labelled `upstream-watch` when:
 
 - Only the fixes listed in [PATCHES.md](PATCHES.md). Bundled libraries stay at the
   versions of the branch (OpenSSL 1.1.1, itself end-of-life, among others).
-- No build of PHP 7.1 or older: their backport branches are not kept up to date. Remi
-  Collet's 7.3 and 7.2 branches lacked about twenty security fixes of 7.4 until they caught
-  up on 2026-11-19; their first patch level is in preparation.
+- No build of PHP 7.1 or older: their backport branches are not kept up to date.
 - Migrating to a supported PHP version remains the real fix.
 - Provided as is, without warranty.
 
