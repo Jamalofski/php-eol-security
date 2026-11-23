@@ -27,6 +27,13 @@ on:
         type: choice
         options: [nts, ts]
         default: nts
+      debug:
+        description: Debug build (--enable-debug), compiled only
+        type: boolean
+        default: false
+      tests:
+        description: Test files or directories for run-tests.php, separated by spaces (wildcards allowed)
+        default: ''
 
 permissions:
   contents: read
@@ -171,6 +178,7 @@ jobs:
           bison --version
           re2c --version
           if "${{ inputs.ts }}"=="nts" (set ZTS=--disable-zts) else (set ZTS=--enable-zts)
+          if "${{ inputs.debug }}"=="true" set ZTS=%ZTS% --enable-debug
           call buildconf.bat || exit /b 1
           rem The options of the official 5.6.40 builds, without the debug pack, PGO and
           rem OCI8 (no Oracle SDK in this trial: the snapshot build skips what it lacks)
@@ -203,7 +211,7 @@ jobs:
           $summary
 
       - name: Check the binaries
-        if: always()
+        if: always() && !inputs.debug
         shell: pwsh
         working-directory: php-src
         run: |
@@ -242,6 +250,31 @@ jobs:
             $deps
           }
 
+      - name: Tests
+        if: always() && inputs.tests != '' && !inputs.debug
+        shell: pwsh
+        working-directory: php-src
+        run: |
+          $out = Get-ChildItem . -Recurse -Filter php.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
+          $env:PATH = "$out;C:\deps\bin;$env:PATH"
+          $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
+          $env:NO_INTERACTION = '1'
+          $env:REPORT_EXIT_STATUS = '0'
+          $list = foreach ($pattern in '${{ inputs.tests }}'.Split(' ', [StringSplitOptions]::RemoveEmptyEntries)) {
+            Get-ChildItem $pattern -Recurse -Filter *.phpt | ForEach-Object { Resolve-Path -Relative $_.FullName }
+          }
+          $list | Set-Content tests.txt
+          "$(@($list).Count) tests"
+          & "$out\php.exe" -n run-tests.php -n -p "$out\php.exe" -d "extension_dir=$out" -d extension=php_openssl.dll -d extension=php_mysqli.dll -d extension=php_mbstring.dll -q -r tests.txt *> run-tests.log
+          $log = Get-Content run-tests.log
+          $summary = @('## Tests', '', '```')
+          $summary += $log | Select-String -Pattern '^(Number of tests|Tests skipped|Tests warned|Tests failed|Expected fail|Tests passed)' | ForEach-Object { $_.Line }
+          $summary += '```', '', 'Failed tests:', '', '```'
+          $summary += $log | Select-String -Pattern '^(FAIL|BORK|LEAK)' | ForEach-Object { $_.Line } | Select-Object -First 80
+          $summary += '```'
+          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $summary
+
       - name: Upload the build and the logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -253,6 +286,8 @@ jobs:
             ${{ runner.temp }}/vs2012/*.log
             ${{ runner.temp }}/openssl-build.log
             nmake.log
+            php-src/run-tests.log
+            php-src/**/*.diff
             php-src/config.nice.bat
             php-src/Makefile
             php-src/**/Release*/*.exe
