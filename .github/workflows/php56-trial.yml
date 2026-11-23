@@ -125,7 +125,30 @@ jobs:
           rem The options of the official 5.6.40 builds, without the debug pack, PGO and
           rem OCI8 (no Oracle SDK in this trial: the snapshot build skips what it lacks)
           call configure.bat --enable-snapshot-build --disable-debug-pack %ZTS% --disable-isapi --disable-nsapi --without-mssql --without-pdo-mssql --without-pi3web --with-enchant=shared --enable-com-dotnet=shared --with-mcrypt=static --without-analyzer --with-php-build=C:\deps || exit /b 1
-          nmake || exit /b 1
+          rem /K: keep building the other targets after an error, to list every file
+          rem that VC11 rejects in one run
+          nmake /K > ..\nmake.log 2>&1
+          set NMAKE_EXIT=%ERRORLEVEL%
+          type ..\nmake.log
+          exit /b %NMAKE_EXIT%
+
+      - name: Compile errors
+        if: failure()
+        shell: pwsh
+        run: |
+          if (-not (Test-Path nmake.log)) { return }
+          $errors = Select-String -Path nmake.log -Pattern '^(\S+)\((\d+)\) : (fatal )?error (C\d+): (.*)$' | ForEach-Object { $_.Matches[0] }
+          $summary = @('## Compile errors', '', "$($errors.Count) errors in $(@($errors | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique).Count) files", '')
+          foreach ($file in $errors | Group-Object { $_.Groups[1].Value }) {
+            $lines = ($file.Group | ForEach-Object { $_.Groups[2].Value } | Sort-Object { [int]$_ } -Unique) -join ', '
+            $first = $file.Group[0]
+            $summary += "- ``$($file.Name)`` lines $lines (first: $($first.Groups[4].Value) $($first.Groups[5].Value))"
+          }
+          $summary += '', 'Other failures:', '', '```'
+          $summary += Select-String -Path nmake.log -Pattern 'fatal error (LNK|U)\d+|unresolved external' | ForEach-Object { $_.Line } | Select-Object -Unique -First 30
+          $summary += '```'
+          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $summary
 
       - name: Check the binaries
         if: always()
@@ -170,6 +193,7 @@ jobs:
           if-no-files-found: warn
           path: |
             ${{ runner.temp }}/vs2012/*.log
+            nmake.log
             php-src/config.nice.bat
             php-src/Makefile
             php-src/**/Release*/*.exe
