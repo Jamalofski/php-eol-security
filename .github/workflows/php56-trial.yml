@@ -140,8 +140,11 @@ jobs:
         shell: cmd
         working-directory: ${{ runner.temp }}\openssl-1.1.1w
         run: |
-          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A) else (set VCARCH=x86& set TARGET=VC-WIN32)
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A& set MACHINE=X64) else (set VCARCH=x86& set TARGET=VC-WIN32& set MACHINE=X86)
           call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          rem The VC11 linker takes X86 from the .res files when no machine is given
+          rem (LNK1112 on libssl in x64): LINK passes the option to every link.
+          set LINK=/MACHINE:%MACHINE%
           set PATH=C:\Strawberry\perl\bin;%PATH%
           perl -v | findstr /c:"This is perl"
           rem no-asm for this trial only: a release build needs NASM (AES-NI and the other assembler paths)
@@ -227,10 +230,16 @@ jobs:
           # Imported DLLs: C runtime (msvcr110.dll for VC11) and OpenSSL names
           $dumpbin = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin' -Filter dumpbin.exe | Select-Object -First 1
           if ($dumpbin) {
-            foreach ($f in Get-ChildItem $out -Filter '*.dll' | Where-Object { $_.Name -match '^php5|^php_(openssl|curl|pgsql|pdo_pgsql|ssh2|ldap|imap|snmp)\.dll$' }) {
-              "== $($f.Name)"
-              & $dumpbin.FullName /nologo /dependents $f.FullName | Select-String '\.dll' | ForEach-Object { $_.Line.Trim() }
+            # dumpbin needs mspdb110.dll from Common7\IDE
+            $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio 11.0\Common7\IDE;$env:PATH"
+            $deps = @('', '## Imported DLLs', '', '```')
+            foreach ($f in @(Get-ChildItem $out -Filter '*.dll') + @(Get-ChildItem C:\deps\bin -Filter '*.dll') | Where-Object { $_.Name -match '^php5|^php_(openssl|curl|pgsql|pdo_pgsql|ldap|imap|snmp)\.dll$|^lib(pq|ssh2|crypto|ssl)' }) {
+              $imports = & $dumpbin.FullName /nologo /dependents $f.FullName 2>&1 | Select-String '^\s+\S+\.dll$' | ForEach-Object { $_.Line.Trim() }
+              $deps += "$($f.Name): $($imports -join ', ')"
             }
+            $deps += '```'
+            $deps | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            $deps
           }
 
       - name: Upload the build and the logs
