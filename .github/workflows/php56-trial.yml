@@ -1,5 +1,5 @@
 name: PHP 5.6 toolchain trial
-run-name: PHP 5.6 trial ${{ inputs.arch }} ${{ inputs.ts }} (${{ inputs.sha }})
+run-name: PHP 5.6 trial ${{ inputs.arch }} ${{ inputs.ts }} (${{ inputs.repo }}@${{ inputs.sha }})
 
 # One-off trial, before any 5.6 build is published: can the 5.6 branch of
 # remicollet/php-src-security be built on a GitHub runner with the toolset of the
@@ -11,8 +11,13 @@ run-name: PHP 5.6 trial ${{ inputs.arch }} ${{ inputs.ts }} (${{ inputs.sha }})
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: Source repository (the fork carries the VC11 fixes proposed upstream)
+        type: choice
+        options: [remicollet/php-src-security, Jamalofski/php-src-security]
+        default: remicollet/php-src-security
       sha:
-        description: Commit of PHP-5.6-security-backports-openssl11 to build
+        description: Commit to build (PHP-5.6-security-backports-openssl11 or a branch based on it)
         default: f98c3c2b5ffca6bed55e6d514307facdcfc35f78
       arch:
         type: choice
@@ -53,7 +58,7 @@ jobs:
       - name: Checkout php-src
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: remicollet/php-src-security
+          repository: ${{ inputs.repo }}
           ref: ${{ inputs.sha }}
           path: php-src
 
