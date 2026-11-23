@@ -1,0 +1,176 @@
+name: PHP 5.6 toolchain trial
+run-name: PHP 5.6 trial ${{ inputs.arch }} ${{ inputs.ts }} (${{ inputs.sha }})
+
+# One-off trial, before any 5.6 build is published: can the 5.6 branch of
+# remicollet/php-src-security be built on a GitHub runner with the toolset of the
+# official 5.6 releases (Visual C++ 2012, VC11), so that the binaries stay
+# compatible with the existing 5.6 extensions? php-windows-builder starts at 7.1,
+# so this job installs VC11 from Microsoft's own ISOs, uses the PHP SDK of the 5.x
+# era and the official vc11 dependency pack of 5.6. Nothing is published.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit of PHP-5.6-security-backports-openssl11 to build
+        default: f98c3c2b5ffca6bed55e6d514307facdcfc35f78
+      arch:
+        type: choice
+        options: [x64, x86]
+        default: x64
+      ts:
+        type: choice
+        options: [nts, ts]
+        default: nts
+
+permissions:
+  contents: read
+
+env:
+  # Visual Studio Express 2012 for Windows Desktop and its Update 4, as Microsoft
+  # still serves them. The digests match those another project pinned for the
+  # same files (riyukuro/MS2Recomp, tools/fetch-vs2012.sh).
+  VS2012_WDX_URL: https://download.microsoft.com/download/1/F/5/1F519CC5-0B90-4EA3-8159-33BFB97EF4D9/VS2012_WDX_ENU.iso
+  VS2012_WDX_SHA256: d38e57b269aed44a41ce2b74b78dad3b92d2bc553fc4b71180080a8936ce2ffb
+  VS2012_U4_URL: https://download.microsoft.com/download/D/4/8/D48D1AC2-A297-4C9E-A9D0-A218E6609F06/VSU4/VS2012.4.iso
+  VS2012_U4_SHA256: c462118eabcc242a50f1215587cb1c79505159af79fc50c24d8be1d25203cd87
+  # PHP SDK and dependency pack of the 5.6 releases (downloads.php.net); their
+  # digests are reported by this trial, to be pinned by the real build.
+  PHP_SDK_URL: https://downloads.php.net/~windows/php-sdk/php-sdk-binary-tools-20110915.zip
+  PHP_DEPS_URL: https://downloads.php.net/~windows/php-sdk/archives/deps-5.6-vc11-${{ inputs.arch }}_2018-12.7z
+
+jobs:
+  trial:
+    name: PHP 5.6 ${{ inputs.arch }} ${{ inputs.ts }}
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: git config
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout php-src
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: remicollet/php-src-security
+          ref: ${{ inputs.sha }}
+          path: php-src
+
+      - name: Download Visual Studio 2012
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\vs2012"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          foreach ($iso in @(
+            @{ Name = 'wdx.iso'; Url = $env:VS2012_WDX_URL; Sha = $env:VS2012_WDX_SHA256 },
+            @{ Name = 'u4.iso'; Url = $env:VS2012_U4_URL; Sha = $env:VS2012_U4_SHA256 }
+          )) {
+            curl.exe -sSfL --retry 3 -o "$dir\$($iso.Name)" $iso.Url
+            if ($LASTEXITCODE) { throw "download of $($iso.Url) failed" }
+            $sha = (Get-FileHash "$dir\$($iso.Name)" -Algorithm SHA256).Hash.ToLower()
+            if ($sha -ne $iso.Sha) { throw "$($iso.Url): sha256 $sha, expected $($iso.Sha)" }
+            "$($iso.Name): $sha"
+          }
+
+      - name: Install Visual Studio Express 2012 and Update 4
+        shell: pwsh
+        timeout-minutes: 90
+        run: |
+          $dir = "$env:RUNNER_TEMP\vs2012"
+          foreach ($step in @(
+            @{ Iso = 'wdx.iso'; Exe = 'wdexpress_full.exe'; Args = '/Quiet /NoRestart /Full' },
+            @{ Iso = 'u4.iso'; Exe = 'VS2012.4.exe'; Args = '/Quiet /NoRestart' }
+          )) {
+            $drive = (Mount-DiskImage "$dir\$($step.Iso)" -PassThru | Get-Volume).DriveLetter
+            Get-ChildItem "${drive}:\" | Format-Table Name, Length
+            $exe = "${drive}:\$($step.Exe)"
+            if (-not (Test-Path $exe)) { throw "$exe not found on $($step.Iso)" }
+            $log = "$dir\$($step.Exe).log"
+            $p = Start-Process $exe -ArgumentList "$($step.Args) /Log `"$log`"" -Wait -PassThru
+            "$($step.Exe): exit code $($p.ExitCode)"
+            # 3010: success, reboot required
+            if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "$($step.Exe) failed with $($p.ExitCode)" }
+            Dismount-DiskImage "$dir\$($step.Iso)" | Out-Null
+          }
+          $vc = 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC'
+          Get-ChildItem "$vc\bin" -Recurse -Filter cl.exe | ForEach-Object { "$($_.FullName) $($_.VersionInfo.FileVersion)" }
+
+      - name: PHP SDK and dependencies
+        shell: pwsh
+        run: |
+          curl.exe -sSfL --retry 3 -o sdk.zip $env:PHP_SDK_URL
+          curl.exe -sSfL --retry 3 -o deps.7z $env:PHP_DEPS_URL
+          foreach ($f in 'sdk.zip', 'deps.7z') { "${f}: $((Get-FileHash $f -Algorithm SHA256).Hash.ToLower())" }
+          Expand-Archive sdk.zip -DestinationPath C:\php-sdk
+          7z x deps.7z -oC:\deps-raw | Out-Null
+          $deps = Get-ChildItem C:\deps-raw -Recurse -Directory -Filter include | Select-Object -First 1 | ForEach-Object { $_.Parent.FullName }
+          if (-not $deps) { throw 'no include directory in the dependency pack' }
+          Move-Item $deps C:\deps
+          Get-ChildItem C:\php-sdk\bin | Select-Object -ExpandProperty Name
+          Get-ChildItem C:\deps\bin, C:\deps\lib | Select-Object -ExpandProperty Name
+
+      - name: Build
+        shell: cmd
+        working-directory: php-src
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64) else (set VCARCH=x86)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          set PATH=C:\php-sdk\bin;%PATH%
+          cl
+          bison --version
+          re2c --version
+          if "${{ inputs.ts }}"=="nts" (set ZTS=--disable-zts) else (set ZTS=--enable-zts)
+          call buildconf.bat || exit /b 1
+          rem The options of the official 5.6.40 builds, without the debug pack, PGO and
+          rem OCI8 (no Oracle SDK in this trial: the snapshot build skips what it lacks)
+          call configure.bat --enable-snapshot-build --disable-debug-pack %ZTS% --disable-isapi --disable-nsapi --without-mssql --without-pdo-mssql --without-pi3web --with-enchant=shared --enable-com-dotnet=shared --with-mcrypt=static --without-analyzer --with-php-build=C:\deps || exit /b 1
+          nmake || exit /b 1
+
+      - name: Check the binaries
+        if: always()
+        shell: pwsh
+        working-directory: php-src
+        run: |
+          $out = Get-ChildItem . -Recurse -Filter php.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
+          if (-not $out) { throw 'php.exe not built' }
+          $env:PATH = "$out;C:\deps\bin;$env:PATH"
+          $summary = @("## PHP 5.6 trial (${{ inputs.arch }} ${{ inputs.ts }}, ${{ inputs.sha }})", '', '```')
+          $summary += & "$out\php.exe" -n -v
+          $summary += & "$out\php.exe" -n -i | Select-String -Pattern '^(Compiler|Architecture|Thread Safety|Configure Command)'
+          $summary += '```'
+          $ok = @(); $failed = @()
+          foreach ($dll in Get-ChildItem $out -Filter 'php_*.dll') {
+            $directive = if ($dll.Name -eq 'php_opcache.dll') { 'zend_extension' } else { 'extension' }
+            $r = & "$out\php.exe" -n -d "extension_dir=$out" -d "$directive=$($dll.Name)" -r 'echo "loaded";' 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0 -and $r.Trim() -eq 'loaded') { $ok += $dll.Name } else { $failed += "$($dll.Name): $($r.Trim())" }
+          }
+          $summary += '', "Extensions loaded: $($ok.Count)", '', ($ok -join ', '), '', "Extensions that failed: $($failed.Count)", ''
+          $summary += $failed | ForEach-Object { "- $_" }
+          $summary += '', '```'
+          $summary += & "$out\php.exe" -n -d "extension_dir=$out" -d extension=php_openssl.dll -d extension=php_curl.dll -r 'echo OPENSSL_VERSION_TEXT, PHP_EOL; $c = curl_version(); echo "curl ", $c["version"], " ", $c["ssl_version"], " zlib ", $c["libz_version"], PHP_EOL;' 2>&1
+          $summary += '```'
+          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $summary
+          # Imported DLLs: C runtime (msvcr110.dll for VC11) and OpenSSL names
+          $dumpbin = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin' -Filter dumpbin.exe | Select-Object -First 1
+          if ($dumpbin) {
+            foreach ($f in Get-ChildItem $out -Filter '*.dll' | Where-Object { $_.Name -match '^php5|^php_(openssl|curl|pgsql|pdo_pgsql|ssh2|ldap|imap|snmp)\.dll$' }) {
+              "== $($f.Name)"
+              & $dumpbin.FullName /nologo /dependents $f.FullName | Select-String '\.dll' | ForEach-Object { $_.Line.Trim() }
+            }
+          }
+
+      - name: Upload the build and the logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: php56-trial-${{ inputs.arch }}-${{ inputs.ts }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/vs2012/*.log
+            php-src/config.nice.bat
+            php-src/Makefile
+            php-src/**/Release*/*.exe
+            php-src/**/Release*/*.dll
