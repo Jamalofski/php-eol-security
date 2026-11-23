@@ -235,7 +235,12 @@ jobs:
           copy /y C:\libssh2\bin\libssh2.dll C:\deps\bin || exit /b 1
           copy /y C:\libssh2\lib\libssh2.lib C:\deps\lib || exit /b 1
           copy /y C:\libssh2\include\*.h C:\deps\include || exit /b 1
-          copy /y C:\curl\lib\libcurl.lib C:\deps\lib\libcurl_a.lib || exit /b 1
+          rem php_curl.dll gets zlib from php5.dll, which exports only the functions curl
+          rem 7.59 used (no inflateReset2), and PHP 5.6 does not link iphlpapi.lib
+          rem (if_nametoindex): both go into libcurl_a.lib, the PHP sources stay as they are.
+          for %%L in (iphlpapi.lib) do set IPHLPAPI=%%~$LIB:L
+          if not defined IPHLPAPI (echo iphlpapi.lib not found in LIB & exit /b 1)
+          lib /nologo /OUT:C:\deps\lib\libcurl_a.lib C:\curl\lib\libcurl.lib C:\zlib\lib\zlib_a.lib "%IPHLPAPI%" || exit /b 1
           rmdir /s /q C:\deps\include\curl
           xcopy /e /i /q C:\curl\include\curl C:\deps\include\curl || exit /b 1
 
@@ -340,13 +345,12 @@ jobs:
           # The extensions come from a php.ini found through PHPRC, not from -d options:
           # the tests that start a second PHP (fake MySQL server, TLS server) pass the
           # -d options on, and Windows mangles the quoted extension_dir on the way.
-          @(
-            "extension_dir=`"$out`""
-            'extension=php_openssl.dll'
-            'extension=php_mysqli.dll'
-            'extension=php_mbstring.dll'
-            'extension=php_curl.dll'
+          # Only the extensions that were built, or every test fails on a startup warning
+          @("extension_dir=`"$out`"") + @(
+            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_curl.dll' |
+              Where-Object { Test-Path "$out\$_" } | ForEach-Object { "extension=$_" }
           ) | Set-Content "$out\php.ini"
+          Get-Content "$out\php.ini"
           $env:PHPRC = $out
           & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q -r tests.txt *> run-tests.log
           $log = Get-Content run-tests.log
