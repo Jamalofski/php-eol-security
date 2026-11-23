@@ -29,17 +29,17 @@ NOTIFY = os.environ.get('NOTIFY', '')
 DRY_RUN = os.environ.get('DRY_RUN') == '1'
 
 # Branches watched without being built, with the commit each one was at when last checked.
-# PHP 5.6 is not built until Remi backports to it the fixes of CVE-2026-109618 and
-# CVE-2026-109619 (critical RCEs, in his 7.2 branch since 2026-10-27).
+# PHP 5.6 is not built. Its openssl11 branch has had the mitigation of CVE-2026-109618 and
+# CVE-2026-109619 (critical RCEs) since 2026-11-20 (31c78f1, backported from 7.4); the other
+# 5.6 branch has not.
 WATCHED = {
     ('remicollet/php-src-security', 'PHP-5.6-security-backports'): '7df1c2b14e40d1c9f84b2903e925ef4c9f6d2373',
     ('remicollet/php-src-security', 'PHP-5.6-security-backports-openssl11'):
-        '5c2cc46b45cf286666671df14edf25fc23676cd8',
+        'f98c3c2b5ffca6bed55e6d514307facdcfc35f78',
 }
 WATCHED_SUBJECT = 'PHP 5.6 is watched, not built'
-WATCHED_ADVICE = ('PHP 5.6 waits for the backports of CVE-2026-109618 and CVE-2026-109619 before a first '
-                  'build: check whether these commits bring them. Either way, record the new head in WATCHED '
-                  '(.github/scripts/watch_upstream.py).')
+WATCHED_ADVICE = ('PHP 5.6 is not built: check what these commits fix before any decision on a first build. '
+                  'Either way, record the new head in WATCHED (.github/scripts/watch_upstream.py).')
 BUILD_ADVICE = ('If they fix security issues, build the next patch level: pin the new commits in versions.json, '
                 'run .github/scripts/verify_backports.py, review the adapted commits, update PATCHES.md, '
                 'then run the Build workflow.')

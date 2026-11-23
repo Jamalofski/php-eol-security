@@ -24,12 +24,13 @@ The patch level 2 base, [51dc7cf](https://github.com/remicollet/php-src-security
 ### PHP 8.1.34 Patch Level 3 (8.1.34-pl3)
 
 Source: [remicollet/php-src-security@64a35bc](https://github.com/remicollet/php-src-security/commit/64a35bc319e15ab6a2670637bb125586d08537c1)
-(branch `PHP-8.1-security-backports`): 37 security fixes: the 24 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 8.1); plus the corrections of the backports that the review of patch level 2 flagged.
+(branch `PHP-8.1-security-backports`): 36 security fixes: the 24 of patch level 2 and the 12 of the php-src release of 2026-11-19 (8.2.36); plus the corrections of the backports that the review of patch level 2 flagged.
 Verification: [verification/8.1.md](verification/8.1.md), 56 commits: 3 adapted, 35 identical, 4 identical code, NEWS/tests differ, 2 no official commit, 10 no official commit, NEWS/tests only, 2 same changes, context differs.
 
 Remarks from the review:
 
 - GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
+- GHSA-rwp7-7vc6-8477 (CVE-2024-11235), counted as a fix when this patch level came out, does not affect 8.1: the advisory limits it to 8.3 and later. The fix corrects the live range of a call memoized on the left of `??=` (`$a->b()->c ??= ...`), which php-src only memoizes since 8.3 ([1057cce](https://github.com/php/php-src/commit/1057cce1c0156ff79e34554de66278ac4d60dc6f)); before, the call is compiled a second time for the write, so that case never occurs. The backport stays in the patch level 3 binaries, where it is harmless: it only extends a live range over a SEPARATE opcode, which cannot throw. The branch dropped it on 2026-11-20 ([751efb5](https://github.com/remicollet/php-src-security/commit/751efb55fb8065634ce24f203264069851028e6d)).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
@@ -45,7 +46,6 @@ Remarks from the review:
 | [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [47f8976](https://github.com/remicollet/php-src-security/commit/47f8976103f6022dc10d12eed151b2bc2980ac72)<br>identical |
 | [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [061a296](https://github.com/remicollet/php-src-security/commit/061a2967440b9fab45946765f387546d3055b41f)<br>identical |
 | [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [e371eee](https://github.com/remicollet/php-src-security/commit/e371eee5ce835619e52fb9acbed9f79f1235d853)<br>identical |
-| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [450c97a](https://github.com/remicollet/php-src-security/commit/450c97a418b20fb0dd6f910dadb421fb3f29465d)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [6885fe9](https://github.com/remicollet/php-src-security/commit/6885fe95926afc7d0704983a74267a77737f0234)<br>reviewed |
 
 Other fixes:
@@ -112,13 +112,14 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 ### PHP 8.0.30 Patch Level 3 (8.0.30-pl3)
 
 Source: [remicollet/php-src-security@7171342](https://github.com/remicollet/php-src-security/commit/7171342a9f14026653a34e1cf6029ca46217ee19)
-(branch `PHP-8.0-security-backports`): 66 security fixes: the 53 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 8.0); plus the corrections of the backports that the review of patch level 2 flagged.
+(branch `PHP-8.0-security-backports`): 65 security fixes: the 53 of patch level 2 and the 12 of the php-src release of 2026-11-19 (8.2.36); plus the corrections of the backports that the review of patch level 2 flagged.
 Verification: [verification/8.0.md](verification/8.0.md), 117 commits: 26 adapted, 43 identical, 18 identical code, NEWS/tests differ, 4 no official commit, 22 no official commit, NEWS/tests only, 4 same changes, context differs.
 
 Remarks from the review:
 
 - GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
 - GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page of 8.0 escapes none of its strings, as before (8.1 added that).
+- GHSA-rwp7-7vc6-8477 (CVE-2024-11235), counted as a fix when this patch level came out, does not affect 8.0: the advisory limits it to 8.3 and later. The fix corrects the live range of a call memoized on the left of `??=` (`$a->b()->c ??= ...`), which php-src only memoizes since 8.3 ([1057cce](https://github.com/php/php-src/commit/1057cce1c0156ff79e34554de66278ac4d60dc6f)); before, the call is compiled a second time for the write, so that case never occurs. The backport stays in the patch level 3 binaries, where it is harmless: it only extends a live range over a SEPARATE opcode, which cannot throw. The branch dropped it on 2026-11-20 ([77bb3e8](https://github.com/remicollet/php-src-security/commit/77bb3e823f45fad2fa523aa5d74f856c2437ccc0)).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
@@ -134,7 +135,6 @@ Remarks from the review:
 | [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [57d625e](https://github.com/remicollet/php-src-security/commit/57d625e81be43c2f21fcfbde4d508220f50ef2a5)<br>identical |
 | [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [19ba875](https://github.com/remicollet/php-src-security/commit/19ba8751e0f5207b77cc1b23f313acd4196eed4c)<br>identical |
 | [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [ff9a660](https://github.com/remicollet/php-src-security/commit/ff9a660811d1dfc1062ef9dc1e6cd1ba8047e11b)<br>identical |
-| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [4ca9a94](https://github.com/remicollet/php-src-security/commit/4ca9a94944efdb64d19d10809d84d62974bc1f94)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [dcc06de](https://github.com/remicollet/php-src-security/commit/dcc06de9bf8eea1a9daad03fcf451e00a5199040)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [61b63dc](https://github.com/remicollet/php-src-security/commit/61b63dc3c6a0483b642bc4f6ea5f2b0a4886ccd3)<br>reviewed |
 
@@ -235,13 +235,14 @@ The patch level 2 base is the tag itself; the patch level 1 fix sits on the `PHP
 ### PHP 7.4.33 Patch Level 3 (7.4.33-pl3)
 
 Source: [remicollet/php-src-security@34a45b9](https://github.com/remicollet/php-src-security/commit/34a45b97de556bf436ed41b9ae2e10004973b339)
-(branch `PHP-7.4-security-backports`): 71 security fixes: the 58 of patch level 2, the 12 of the php-src release of 2026-11-19 (8.2.36) and GHSA-rwp7-7vc6-8477 (8.3.19, never fixed upstream in 7.4); plus the corrections of the backports that the review of patch level 2 flagged.
+(branch `PHP-7.4-security-backports`): 70 security fixes: the 58 of patch level 2 and the 12 of the php-src release of 2026-11-19 (8.2.36); plus the corrections of the backports that the review of patch level 2 flagged.
 Verification: [verification/7.4.md](verification/7.4.md), 145 commits: 44 adapted, 33 identical, 15 identical code, NEWS/tests differ, 7 no official commit, 40 no official commit, NEWS/tests only, 6 same changes, context differs.
 
 Remarks from the review:
 
 - GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress has written no session data since patch level 1, as the CVE-2026-109618/109619 mitigation for end-of-life branches turned it off.
 - GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page of 7.4 escapes none of its strings, as before (8.1 added that).
+- GHSA-rwp7-7vc6-8477 (CVE-2024-11235), counted as a fix when this patch level came out, does not affect 7.4: the advisory limits it to 8.3 and later. The fix corrects the live range of a call memoized on the left of `??=` (`$a->b()->c ??= ...`), which php-src only memoizes since 8.3 ([1057cce](https://github.com/php/php-src/commit/1057cce1c0156ff79e34554de66278ac4d60dc6f)); before, the call is compiled a second time for the write, so that case never occurs. The backport stays in the patch level 3 binaries, where it is harmless: it only extends a live range over a SEPARATE opcode, which cannot throw. The branch dropped it on 2026-11-20 ([9a0a020](https://github.com/remicollet/php-src-security/commit/9a0a020ff74083b9d30666c041b515f0ff8f4d3c)).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
@@ -257,7 +258,6 @@ Remarks from the review:
 | [GHSA-4646-p932-gw34](https://github.com/php/php-src/security/advisories/GHSA-4646-p932-gw34)<br>CVE-2026-129506 | medium | SOAP: SOAP use-after-free when processing DTD entity references | 8.2.36 | [0289ac3](https://github.com/remicollet/php-src-security/commit/0289ac37e28d8be9937328980e6b82ad97937c43)<br>identical |
 | [GHSA-f6gg-rchx-xw8j](https://github.com/php/php-src/security/advisories/GHSA-f6gg-rchx-xw8j)<br>CVE-2026-128064 | high | Standard: Mixed-case HTTPS and FTPS URLs can expose data in plaintext | 8.2.36 | [09edf34](https://github.com/remicollet/php-src-security/commit/09edf3451bc81b6023e362748c58decf7b1cee0b)<br>identical |
 | [GHSA-mmf9-xm3v-hg2x](https://github.com/php/php-src/security/advisories/GHSA-mmf9-xm3v-hg2x)<br>CVE-2026-127960 | high | Standard: Denial of service through folded HTTP response headers | 8.2.36 | [ed1de09](https://github.com/remicollet/php-src-security/commit/ed1de09f6bd108d32e21417dbe9ac1bea232d6d3)<br>adapted |
-| [GHSA-rwp7-7vc6-8477](https://github.com/php/php-src/security/advisories/GHSA-rwp7-7vc6-8477)<br>CVE-2024-11235 | medium | Core: Reference counting in php_request_shutdown causes Use-After-Free | 8.3.19 | [7c40f3b](https://github.com/remicollet/php-src-security/commit/7c40f3bbdfc5865c7f3e9418d62e95ea83b5a0cc)<br>identical code |
 | [GHSA-m8rr-4c36-8gq4](https://github.com/php/php-src/security/advisories/GHSA-m8rr-4c36-8gq4)<br>CVE-2026-7258 | - | Standard: completes the backport; the `-d` value check of the CLI, CGI, FPM and phpdbg SAPIs now passes an unsigned char to `isalnum()`, as the official fix does in 8.2 | 8.2.31 | [2c4b0c4](https://github.com/remicollet/php-src-security/commit/2c4b0c49d0177dfa606f942cc57116156be15e48)<br>reviewed |
 | [GHSA-hrwm-9436-5mv3](https://github.com/php/php-src/security/advisories/GHSA-hrwm-9436-5mv3)<br>CVE-2025-1735 | - | PGSQL: completes the backport; `php_pgsql_convert()` releases the escaped string when escaping fails | 8.1.33 | [68c07d5](https://github.com/remicollet/php-src-security/commit/68c07d5a9079703635a988ae1751744e704509a4)<br>reviewed |
 
@@ -377,7 +377,7 @@ Remarks from the review:
 - GHSA-658j-r8rw-q6mx: as on the supported branches, `session.upload_progress.enabled` is now off by default. The ban on changing session settings at runtime while it is on is left out: session upload progress writes no session data in this branch, as the CVE-2026-109618/109619 mitigation turned it off.
 - GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page escapes none of its strings, as before.
 - GHSA-fpwc-w8rq-cr92 comes without the GH-11274 change of 7.4: 307 and 308 redirects are still followed with GET.
-- Not applicable, the code they fix is not in 7.3: GHSA-9fcc-425m-g385 and CVE-2024-1874 (`proc_open()` takes no command array before 7.4), GHSA-865w-9rf3-2wh5 (FPM flush command, 7.4), GHSA-p3x9-6h7p-cgfc (libxml Content-Type detection, 7.4), GHSA-3237-qqm7-mfv7 (`php_read_stream_all_chunks()`, 8.1) and GHSA-rwp7-7vc6-8477 (`??=`, 7.4).
+- Not applicable, the code they fix is not in 7.3: GHSA-9fcc-425m-g385 and CVE-2024-1874 (`proc_open()` takes no command array before 7.4), GHSA-865w-9rf3-2wh5 (FPM flush command, 7.4), GHSA-p3x9-6h7p-cgfc (libxml Content-Type detection, 7.4), GHSA-3237-qqm7-mfv7 (`php_read_stream_all_chunks()`, 8.1) and GHSA-rwp7-7vc6-8477 (call memoized on the left of `??=`, 8.3).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
@@ -476,7 +476,7 @@ Remarks from the review:
 - GHSA-3mg3-cr28-46gc: the user and script fields are escaped in the HTML and XML status pages; the JSON status page escapes none of its strings, as before.
 - GHSA-fpwc-w8rq-cr92 comes without the GH-11274 change of 7.4: 307 and 308 redirects are still followed with GET.
 - GHSA-r6x9-5r99-36j7: the 7.2 port of the fix, by Ondřej Surý, leaves out two parts of the official fix: the check that the rest of the server scramble is in the greeting packet (with a malicious server, `php_mysqlnd_greet_read()` can read up to 235 bytes past the packet, within its 2048-byte buffer) and the release of what a statement owns in the error path of `mysqlnd_stmt_prepare_read_eof()` (a leak).
-- Not applicable, the code they fix is not in 7.2: GHSA-9fcc-425m-g385 and CVE-2024-1874 (`proc_open()` takes no command array before 7.4), GHSA-865w-9rf3-2wh5 (FPM flush command, 7.4), GHSA-p3x9-6h7p-cgfc (libxml Content-Type detection, 7.4), GHSA-3237-qqm7-mfv7 (`php_read_stream_all_chunks()`, 8.1) and GHSA-rwp7-7vc6-8477 (`??=`, 7.4).
+- Not applicable, the code they fix is not in 7.2: GHSA-9fcc-425m-g385 and CVE-2024-1874 (`proc_open()` takes no command array before 7.4), GHSA-865w-9rf3-2wh5 (FPM flush command, 7.4), GHSA-p3x9-6h7p-cgfc (libxml Content-Type detection, 7.4), GHSA-3237-qqm7-mfv7 (`php_read_stream_all_chunks()`, 8.1) and GHSA-rwp7-7vc6-8477 (call memoized on the left of `??=`, 8.3).
 
 | Advisory | Severity | Summary | From | Commit, verification |
 |---|---|---|---|---|
