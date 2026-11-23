@@ -43,6 +43,10 @@ env:
   # digests are reported by this trial, to be pinned by the real build.
   PHP_SDK_URL: https://downloads.php.net/~windows/php-sdk/php-sdk-binary-tools-20110915.zip
   PHP_DEPS_URL: https://downloads.php.net/~windows/php-sdk/archives/deps-5.6-vc11-${{ inputs.arch }}_2018-12.7z
+  # The openssl11 branch uses the OpenSSL 1.1 API only, while the vc11 pack has
+  # OpenSSL 1.0.2q: OpenSSL 1.1.1w (last public 1.1.1 release) is built with VC11.
+  OPENSSL_URL: https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz
+  OPENSSL_SHA256: cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8
 
 jobs:
   trial:
@@ -71,7 +75,8 @@ jobs:
             @{ Name = 'wdx.iso'; Url = $env:VS2012_WDX_URL; Sha = $env:VS2012_WDX_SHA256 },
             @{ Name = 'u4.iso'; Url = $env:VS2012_U4_URL; Sha = $env:VS2012_U4_SHA256 }
           )) {
-            curl.exe -sSfL --retry 3 -o "$dir\$($iso.Name)" $iso.Url
+            # 2.5 GB for Update 4: retry on any error, resuming the partial file
+            curl.exe -sSfL --retry 5 --retry-all-errors --retry-delay 15 -C - -o "$dir\$($iso.Name)" $iso.Url
             if ($LASTEXITCODE) { throw "download of $($iso.Url) failed" }
             $sha = (Get-FileHash "$dir\$($iso.Name)" -Algorithm SHA256).Hash.ToLower()
             if ($sha -ne $iso.Sha) { throw "$($iso.Url): sha256 $sha, expected $($iso.Sha)" }
@@ -114,6 +119,43 @@ jobs:
           Move-Item $deps C:\deps
           Get-ChildItem C:\php-sdk\bin | Select-Object -ExpandProperty Name
           Get-ChildItem C:\deps\bin, C:\deps\lib | Select-Object -ExpandProperty Name
+          # Which libraries of the pack are tied to OpenSSL 1.0 (import or symbol names)
+          $tied = Get-ChildItem C:\deps\lib\*.lib, C:\deps\bin\*.dll | Where-Object {
+            Select-String -LiteralPath $_.FullName -Pattern 'libeay32|ssleay32|SSL_library_init' -Quiet
+          } | ForEach-Object { $_.Name }
+          $summary = @('## Libraries of the vc11 pack tied to OpenSSL 1.0', '', ($tied -join ', '), '')
+          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $summary
+
+      - name: Download OpenSSL
+        shell: pwsh
+        run: |
+          curl.exe -sSfL --retry 3 -o openssl.tar.gz $env:OPENSSL_URL
+          $sha = (Get-FileHash openssl.tar.gz -Algorithm SHA256).Hash.ToLower()
+          if ($sha -ne $env:OPENSSL_SHA256) { throw "openssl.tar.gz: sha256 $sha, expected $env:OPENSSL_SHA256" }
+          tar -xzf openssl.tar.gz -C $env:RUNNER_TEMP
+          if ($LASTEXITCODE) { throw 'extraction failed' }
+
+      - name: Build OpenSSL with VC11
+        shell: cmd
+        working-directory: ${{ runner.temp }}\openssl-1.1.1w
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A) else (set VCARCH=x86& set TARGET=VC-WIN32)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          set PATH=C:\Strawberry\perl\bin;%PATH%
+          perl -v | findstr /c:"This is perl"
+          rem no-asm for this trial only: a release build needs NASM (AES-NI and the other assembler paths)
+          perl Configure %TARGET% no-asm no-tests --prefix=C:\openssl111 || exit /b 1
+          nmake > ..\openssl-build.log 2>&1 || (type ..\openssl-build.log & exit /b 1)
+          nmake install_sw > nul || exit /b 1
+          rem Replace OpenSSL 1.0.2q of the pack with 1.1.1w
+          rmdir /s /q C:\deps\include\openssl
+          xcopy /e /i /q C:\openssl111\include\openssl C:\deps\include\openssl || exit /b 1
+          del C:\deps\lib\libeay32.lib C:\deps\lib\ssleay32.lib
+          copy /y C:\openssl111\lib\libcrypto.lib C:\deps\lib || exit /b 1
+          copy /y C:\openssl111\lib\libssl.lib C:\deps\lib || exit /b 1
+          copy /y C:\openssl111\bin\*.dll C:\deps\bin || exit /b 1
+          dir /b C:\openssl111\bin
 
       - name: Build
         shell: cmd
@@ -149,8 +191,10 @@ jobs:
             $first = $file.Group[0]
             $summary += "- ``$($file.Name)`` lines $lines (first: $($first.Groups[4].Value) $($first.Groups[5].Value))"
           }
-          $summary += '', 'Other failures:', '', '```'
-          $summary += Select-String -Path nmake.log -Pattern 'fatal error (LNK|U)\d+|unresolved external' | ForEach-Object { $_.Line } | Select-Object -Unique -First 30
+          $summary += '', 'Link failures:', '', '```'
+          $summary += Select-String -Path nmake.log -Pattern 'fatal error LNK\d+' | ForEach-Object { $_.Line.Trim() } | Select-Object -Unique
+          $summary += '```', '', 'Unresolved symbols:', '', '```'
+          $summary += (Select-String -Path nmake.log -Pattern 'unresolved external symbol (\S+)' | ForEach-Object { "$($_.Line.Split(' :')[0]) $($_.Matches[0].Groups[1].Value)" } | Select-Object -Unique -First 60)
           $summary += '```'
           $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           $summary
@@ -198,6 +242,7 @@ jobs:
           if-no-files-found: warn
           path: |
             ${{ runner.temp }}/vs2012/*.log
+            ${{ runner.temp }}/openssl-build.log
             nmake.log
             php-src/config.nice.bat
             php-src/Makefile
