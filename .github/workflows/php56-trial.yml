@@ -34,6 +34,11 @@ on:
       tests:
         description: Test files or directories for run-tests.php, separated by spaces (wildcards allowed)
         default: ''
+      curl:
+        description: libcurl version (8.21.0 is the last one that builds with OpenSSL 1.1; 8.23.0 is built with OpenSSL 3.5, linked statically into libcurl)
+        type: choice
+        options: ['8.21.0', '8.23.0']
+        default: '8.21.0'
 
 permissions:
   contents: read
@@ -58,8 +63,12 @@ env:
   # OpenSSL/1.0.2q): the current releases are built with VC11 against 1.1.1w.
   LIBSSH2_URL: https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz
   LIBSSH2_SHA256: d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7
-  CURL_URL: https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.gz
-  CURL_SHA256: e3de77cfa6367083c776a26647fc9f633b538c06c3baa73d931a252ac8f72b49
+  CURL_URL: https://github.com/curl/curl/releases/download/curl-${{ inputs.curl == '8.23.0' && '8_23_0' || '8_21_0' }}/curl-${{ inputs.curl }}.tar.gz
+  CURL_SHA256: ${{ inputs.curl == '8.23.0' && 'e3de77cfa6367083c776a26647fc9f633b538c06c3baa73d931a252ac8f72b49' || 'd9b327997999045a24cda50f3983e69e51c516bd8be6ef9842fc7f99135e33bb' }}
+  # curl 8.22.0 and later require OpenSSL 3: for 8.23.0, OpenSSL 3.5 (LTS) is built
+  # statically and merged into libcurl, so that php_openssl keeps OpenSSL 1.1.1w.
+  OPENSSL35_URL: https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz
+  OPENSSL35_SHA256: 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 
 jobs:
   trial:
@@ -179,7 +188,7 @@ jobs:
           foreach ($lib in @(
             @{ Name = 'libssh2.tar.gz'; Url = $env:LIBSSH2_URL; Sha = $env:LIBSSH2_SHA256 },
             @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 }
-          )) {
+          ) + @(if ('${{ inputs.curl }}' -eq '8.23.0') { @{ Name = 'openssl35.tar.gz'; Url = $env:OPENSSL35_URL; Sha = $env:OPENSSL35_SHA256 } })) {
             curl.exe -sSfL --retry 3 -o $lib.Name $lib.Url
             if ($LASTEXITCODE) { throw "download of $($lib.Url) failed" }
             $sha = (Get-FileHash $lib.Name -Algorithm SHA256).Hash.ToLower()
@@ -187,6 +196,20 @@ jobs:
             tar -xzf $lib.Name -C $env:RUNNER_TEMP
             if ($LASTEXITCODE) { throw "extraction of $($lib.Name) failed" }
           }
+
+      - name: Build OpenSSL 3.5 for curl with VC11
+        if: inputs.curl == '8.23.0'
+        shell: cmd
+        working-directory: ${{ runner.temp }}\openssl-3.5.9
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A& set MACHINE=X64) else (set VCARCH=x86& set TARGET=VC-WIN32& set MACHINE=X86)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VCcvarsall.bat" %VCARCH% || exit /b 1
+          set LINK=/MACHINE:%MACHINE%
+          set PATH=C:\Strawberry\perlin;%PATH%
+          perl Configure %TARGET% no-asm no-shared no-tests no-docs --prefix=C:\openssl35 > ..\openssl35-build.log 2>&1 || (type ..\openssl35-build.log & exit /b 1)
+          nmake >> ..\openssl35-build.log 2>&1 || (powershell -Command "Get-Content ..\openssl35-build.log -Tail 60" & exit /b 1)
+          nmake install_sw > nul || exit /b 1
+          dir /b C:\openssl35\lib
 
       - name: Build libssh2 and curl with VC11
         shell: cmd
@@ -202,7 +225,7 @@ jobs:
           cmake --install build-libssh2 > nul || exit /b 1
           rem libcurl static (CURL_STATICLIB), with the features of the PHP builds: OpenSSL,
           rem libssh2, zlib, Windows IDN and LDAP; no HTTP/2, as in 5.6.40
-          cmake -G "NMake Makefiles" -S curl-8.23.0 -B build-curl -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR=C:/openssl111 -DCURL_USE_LIBSSH2=ON -DLIBSSH2_INCLUDE_DIR=C:/libssh2/include -DLIBSSH2_LIBRARY=C:/libssh2/lib/libssh2.lib -DCURL_ZLIB=ON -DZLIB_INCLUDE_DIR=C:/deps/include -DZLIB_LIBRARY=C:/deps/lib/zlib_a.lib -DUSE_WIN32_IDN=ON -DUSE_NGHTTP2=OFF -DCURL_USE_LIBPSL=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF -DUSE_LIBIDN2=OFF -DCMAKE_INSTALL_PREFIX=C:/curl > curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
+          cmake -G "NMake Makefiles" -S curl-${{ inputs.curl }} -B build-curl -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR=${{ inputs.curl == '8.23.0' && 'C:/openssl35 -DOPENSSL_USE_STATIC_LIBS=ON' || 'C:/openssl111' }} -DCURL_USE_LIBSSH2=ON -DLIBSSH2_INCLUDE_DIR=C:/libssh2/include -DLIBSSH2_LIBRARY=C:/libssh2/lib/libssh2.lib -DCURL_ZLIB=ON -DZLIB_INCLUDE_DIR=C:/deps/include -DZLIB_LIBRARY=C:/deps/lib/zlib_a.lib -DUSE_WIN32_IDN=ON -DUSE_NGHTTP2=OFF -DCURL_USE_LIBPSL=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF -DUSE_LIBIDN2=OFF -DCMAKE_INSTALL_PREFIX=C:/curl > curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
           cmake --build build-curl >> curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
           cmake --install build-curl > nul || exit /b 1
           findstr /c:"Enabled features" /c:"Enabled SSL backends" /c:"Protocols" curl-build.log
@@ -212,7 +235,9 @@ jobs:
           copy /y C:\libssh2\bin\libssh2.dll C:\deps\bin || exit /b 1
           copy /y C:\libssh2\lib\libssh2.lib C:\deps\lib || exit /b 1
           copy /y C:\libssh2\include\*.h C:\deps\include || exit /b 1
-          for %%f in (C:\curl\lib\*.lib) do copy /y "%%f" C:\deps\lib\libcurl_a.lib || exit /b 1
+          rem With OpenSSL 3.5, its static libraries go into libcurl_a.lib, ahead of the
+          rem OpenSSL 1.1.1w import libraries that php_curl.dll also links
+          if "${{ inputs.curl }}"=="8.23.0" (lib /nologo /OUT:C:\deps\lib\libcurl_a.lib C:\curl\lib\libcurl.lib C:\openssl35\lib\libssl.lib C:\openssl35\lib\libcrypto.lib || exit /b 1) else (copy /y C:\curl\lib\libcurl.lib C:\deps\lib\libcurl_a.lib || exit /b 1)
           rmdir /s /q C:\deps\include\curl
           xcopy /e /i /q C:\curl\include\curl C:\deps\include\curl || exit /b 1
 
@@ -314,7 +339,18 @@ jobs:
           }
           $list | Set-Content tests.txt
           "$(@($list).Count) tests"
-          & "$out\php.exe" -n run-tests.php -n -p "$out\php.exe" -d "extension_dir=$out" -d extension=php_openssl.dll -d extension=php_mysqli.dll -d extension=php_mbstring.dll -q -r tests.txt *> run-tests.log
+          # The extensions come from a php.ini found through PHPRC, not from -d options:
+          # the tests that start a second PHP (fake MySQL server, TLS server) pass the
+          # -d options on, and Windows mangles the quoted extension_dir on the way.
+          @(
+            "extension_dir=`"$out`""
+            'extension=php_openssl.dll'
+            'extension=php_mysqli.dll'
+            'extension=php_mbstring.dll'
+            'extension=php_curl.dll'
+          ) | Set-Content "$out\php.ini"
+          $env:PHPRC = $out
+          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q -r tests.txt *> run-tests.log
           $log = Get-Content run-tests.log
           $summary = @('## Tests', '', '```')
           $summary += $log | Select-String -Pattern '^(Number of tests|Tests skipped|Tests warned|Tests failed|Expected fail|Tests passed)' | ForEach-Object { $_.Line }
@@ -336,6 +372,7 @@ jobs:
             ${{ runner.temp }}/openssl-build.log
             ${{ runner.temp }}/libssh2-build.log
             ${{ runner.temp }}/curl-build.log
+            ${{ runner.temp }}/openssl35-build.log
             nmake.log
             php-src/run-tests.log
             php-src/**/*.diff
