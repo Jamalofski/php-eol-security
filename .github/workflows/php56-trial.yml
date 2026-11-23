@@ -34,11 +34,11 @@ on:
       tests:
         description: Test files or directories for run-tests.php, separated by spaces (wildcards allowed)
         default: ''
-      curl:
-        description: libcurl version (8.21.0 is the last one that builds with OpenSSL 1.1; 8.23.0 is built with OpenSSL 3.5, linked statically into libcurl)
+      curl_cc:
+        description: Compiler of libcurl (OpenSSL 3.5 is always built with clang-cl against the VC11 runtime)
         type: choice
-        options: ['8.21.0', '8.23.0']
-        default: '8.21.0'
+        options: [cl, clang-cl]
+        default: cl
 
 permissions:
   contents: read
@@ -63,12 +63,17 @@ env:
   # OpenSSL/1.0.2q): the current releases are built with VC11 against 1.1.1w.
   LIBSSH2_URL: https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz
   LIBSSH2_SHA256: d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7
-  CURL_URL: https://github.com/curl/curl/releases/download/curl-${{ inputs.curl == '8.23.0' && '8_23_0' || '8_21_0' }}/curl-${{ inputs.curl }}.tar.gz
-  CURL_SHA256: ${{ inputs.curl == '8.23.0' && 'e3de77cfa6367083c776a26647fc9f633b538c06c3baa73d931a252ac8f72b49' || 'd9b327997999045a24cda50f3983e69e51c516bd8be6ef9842fc7f99135e33bb' }}
-  # curl 8.22.0 and later require OpenSSL 3: for 8.23.0, OpenSSL 3.5 (LTS) is built
-  # statically and merged into libcurl, so that php_openssl keeps OpenSSL 1.1.1w.
+  CURL_URL: https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.gz
+  CURL_SHA256: e3de77cfa6367083c776a26647fc9f633b538c06c3baa73d931a252ac8f72b49
+  # curl 8.18.0 and later require OpenSSL 3: OpenSSL 3.5 (LTS) is built statically
+  # and merged into libcurl, so that php_openssl keeps OpenSSL 1.1.1w. OpenSSL 3
+  # needs C99 (stdbool.h), which VC11 lacks: it is compiled with clang-cl against
+  # the VC11 headers and runtime (msvcr110), so that a single C runtime remains.
   OPENSSL35_URL: https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz
   OPENSSL35_SHA256: 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+  # zlib 1.2.7.3 of the pack (2013) has known flaws: zlib 1.4, for PHP and curl
+  ZLIB_URL: https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz
+  ZLIB_SHA256: 02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584
 
 jobs:
   trial:
@@ -182,13 +187,15 @@ jobs:
           copy /y C:\openssl111\bin\*.dll C:\deps\bin || exit /b 1
           dir /b C:\openssl111\bin
 
-      - name: Download libssh2 and curl
+      - name: Download zlib, libssh2, OpenSSL 3.5 and curl
         shell: pwsh
         run: |
           foreach ($lib in @(
+            @{ Name = 'zlib.tar.gz'; Url = $env:ZLIB_URL; Sha = $env:ZLIB_SHA256 },
             @{ Name = 'libssh2.tar.gz'; Url = $env:LIBSSH2_URL; Sha = $env:LIBSSH2_SHA256 },
+            @{ Name = 'openssl35.tar.gz'; Url = $env:OPENSSL35_URL; Sha = $env:OPENSSL35_SHA256 },
             @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 }
-          ) + @(if ('${{ inputs.curl }}' -eq '8.23.0') { @{ Name = 'openssl35.tar.gz'; Url = $env:OPENSSL35_URL; Sha = $env:OPENSSL35_SHA256 } })) {
+          )) {
             curl.exe -sSfL --retry 3 -o $lib.Name $lib.Url
             if ($LASTEXITCODE) { throw "download of $($lib.Url) failed" }
             $sha = (Get-FileHash $lib.Name -Algorithm SHA256).Hash.ToLower()
@@ -197,16 +204,34 @@ jobs:
             if ($LASTEXITCODE) { throw "extraction of $($lib.Name) failed" }
           }
 
-      - name: Build OpenSSL 3.5 for curl with VC11
-        if: inputs.curl == '8.23.0'
+      - name: Build zlib with VC11
+        shell: cmd
+        working-directory: ${{ runner.temp }}\zlib-1.4
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set MACHINE=X64) else (set VCARCH=x86& set MACHINE=X86)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          set LINK=/MACHINE:%MACHINE%
+          nmake -f win32\Makefile.msc zlib.lib > ..\zlib-build.log 2>&1 || (type ..\zlib-build.log & exit /b 1)
+          mkdir C:\zlib\include C:\zlib\lib
+          copy /y zlib.h C:\zlib\include || exit /b 1
+          copy /y zconf.h C:\zlib\include || exit /b 1
+          copy /y zlib.lib C:\zlib\lib\zlib_a.lib || exit /b 1
+          rem In place of zlib 1.2.7.3 of the pack (static, as PHP links it)
+          copy /y C:\zlib\include\*.h C:\deps\include || exit /b 1
+          copy /y C:\zlib\lib\zlib_a.lib C:\deps\lib || exit /b 1
+
+      - name: Build OpenSSL 3.5 for curl with clang-cl
         shell: cmd
         working-directory: ${{ runner.temp }}\openssl-3.5.9
         run: |
-          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A& set MACHINE=X64) else (set VCARCH=x86& set TARGET=VC-WIN32& set MACHINE=X86)
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A& set MACHINE=X64& set M=-m64) else (set VCARCH=x86& set TARGET=VC-WIN32& set MACHINE=X86& set M=-m32)
           call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
           set LINK=/MACHINE:%MACHINE%
-          set PATH=C:\Strawberry\perl\bin;%PATH%
-          perl Configure %TARGET% no-asm no-shared no-tests no-docs --prefix=C:\openssl35 > ..\openssl35-build.log 2>&1 || (type ..\openssl35-build.log & exit /b 1)
+          set PATH=C:\Strawberry\perl\bin;C:\Program Files\LLVM\bin;%PATH%
+          clang-cl --version
+          rem The VC11 headers and libraries of vcvarsall; _MSC_VER 1700 keeps OpenSSL
+          rem off the runtime functions that msvcr110 lacks
+          perl Configure %TARGET% CC=clang-cl %M% -fms-compatibility-version=17.00 no-asm no-shared no-tests no-docs --prefix=C:\openssl35 > ..\openssl35-build.log 2>&1 || (type ..\openssl35-build.log & exit /b 1)
           nmake >> ..\openssl35-build.log 2>&1 || (powershell -Command "Get-Content ..\openssl35-build.log -Tail 60" & exit /b 1)
           nmake install_sw > nul || exit /b 1
           dir /b C:\openssl35\lib
@@ -224,8 +249,14 @@ jobs:
           cmake --build build-libssh2 >> libssh2-build.log 2>&1 || (type libssh2-build.log & exit /b 1)
           cmake --install build-libssh2 > nul || exit /b 1
           rem libcurl static (CURL_STATICLIB), with the features of the PHP builds: OpenSSL,
-          rem libssh2, zlib, Windows IDN and LDAP; no HTTP/2, as in 5.6.40
-          cmake -G "NMake Makefiles" -S curl-${{ inputs.curl }} -B build-curl -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR=${{ inputs.curl == '8.23.0' && 'C:/openssl35 -DOPENSSL_USE_STATIC_LIBS=ON' || 'C:/openssl111' }} -DCURL_USE_LIBSSH2=ON -DLIBSSH2_INCLUDE_DIR=C:/libssh2/include -DLIBSSH2_LIBRARY=C:/libssh2/lib/libssh2.lib -DCURL_ZLIB=ON -DZLIB_INCLUDE_DIR=C:/deps/include -DZLIB_LIBRARY=C:/deps/lib/zlib_a.lib -DUSE_WIN32_IDN=ON -DUSE_NGHTTP2=OFF -DCURL_USE_LIBPSL=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF -DUSE_LIBIDN2=OFF -DCMAKE_INSTALL_PREFIX=C:/curl > curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
+          rem libssh2, zlib, Windows IDN and LDAP; no HTTP/2, as in 5.6.40. Only its own
+          rem prefixes are on its include path (C:\deps\include has other OpenSSL headers).
+          set CURL_CC=
+          if "${{ inputs.curl_cc }}"=="clang-cl" (
+            set "PATH=C:\Program Files\LLVM\bin;%PATH%"
+            if "${{ inputs.arch }}"=="x64" (set CURL_CC=-DCMAKE_C_COMPILER=clang-cl "-DCMAKE_C_FLAGS=-m64 -fms-compatibility-version=17.00") else (set CURL_CC=-DCMAKE_C_COMPILER=clang-cl "-DCMAKE_C_FLAGS=-m32 -fms-compatibility-version=17.00")
+          )
+          cmake -G "NMake Makefiles" -S curl-8.23.0 -B build-curl %CURL_CC% -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR=C:/openssl35 -DOPENSSL_USE_STATIC_LIBS=ON -DCURL_USE_LIBSSH2=ON -DLIBSSH2_INCLUDE_DIR=C:/libssh2/include -DLIBSSH2_LIBRARY=C:/libssh2/lib/libssh2.lib -DCURL_ZLIB=ON -DZLIB_INCLUDE_DIR=C:/zlib/include -DZLIB_LIBRARY=C:/zlib/lib/zlib_a.lib -DUSE_WIN32_IDN=ON -DUSE_NGHTTP2=OFF -DCURL_USE_LIBPSL=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF -DUSE_LIBIDN2=OFF -DCMAKE_INSTALL_PREFIX=C:/curl > curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
           cmake --build build-curl >> curl-build.log 2>&1 || (type curl-build.log & exit /b 1)
           cmake --install build-curl > nul || exit /b 1
           findstr /c:"Enabled features" /c:"Enabled SSL backends" /c:"Protocols" curl-build.log
@@ -237,7 +268,7 @@ jobs:
           copy /y C:\libssh2\include\*.h C:\deps\include || exit /b 1
           rem With OpenSSL 3.5, its static libraries go into libcurl_a.lib, ahead of the
           rem OpenSSL 1.1.1w import libraries that php_curl.dll also links
-          if "${{ inputs.curl }}"=="8.23.0" (lib /nologo /OUT:C:\deps\lib\libcurl_a.lib C:\curl\lib\libcurl.lib C:\openssl35\lib\libssl.lib C:\openssl35\lib\libcrypto.lib || exit /b 1) else (copy /y C:\curl\lib\libcurl.lib C:\deps\lib\libcurl_a.lib || exit /b 1)
+          lib /nologo /OUT:C:\deps\lib\libcurl_a.lib C:\curl\lib\libcurl.lib C:\openssl35\lib\libssl.lib C:\openssl35\lib\libcrypto.lib || exit /b 1
           rmdir /s /q C:\deps\include\curl
           xcopy /e /i /q C:\curl\include\curl C:\deps\include\curl || exit /b 1
 
@@ -373,6 +404,7 @@ jobs:
             ${{ runner.temp }}/libssh2-build.log
             ${{ runner.temp }}/curl-build.log
             ${{ runner.temp }}/openssl35-build.log
+            ${{ runner.temp }}/zlib-build.log
             nmake.log
             php-src/run-tests.log
             php-src/**/*.diff
