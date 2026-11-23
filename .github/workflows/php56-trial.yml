@@ -203,9 +203,9 @@ jobs:
         working-directory: ${{ runner.temp }}\openssl-3.5.9
         run: |
           if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set TARGET=VC-WIN64A& set MACHINE=X64) else (set VCARCH=x86& set TARGET=VC-WIN32& set MACHINE=X86)
-          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VCcvarsall.bat" %VCARCH% || exit /b 1
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
           set LINK=/MACHINE:%MACHINE%
-          set PATH=C:\Strawberry\perlin;%PATH%
+          set PATH=C:\Strawberry\perl\bin;%PATH%
           perl Configure %TARGET% no-asm no-shared no-tests no-docs --prefix=C:\openssl35 > ..\openssl35-build.log 2>&1 || (type ..\openssl35-build.log & exit /b 1)
           nmake >> ..\openssl35-build.log 2>&1 || (powershell -Command "Get-Content ..\openssl35-build.log -Tail 60" & exit /b 1)
           nmake install_sw > nul || exit /b 1
