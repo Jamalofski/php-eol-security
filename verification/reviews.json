@@ -733,5 +733,481 @@
   "75342f16cdb830f0de70a5e528dcd04565955a92": {
     "branch": "7.2",
     "note": "Same as the 7.3 commit f6ecc88."
+  },
+  "1633657cb6a20b24e69c5a008089eb21ec027d06": {
+    "branch": "5.6",
+    "note": "Cherry-pick (same changed lines) of Remi Collet's 4ca75ff, head of remicollet/php-src PHP-5.6-openssl11, committed here by Anatol Belski on 2019-01-21: a 5.6 port of the ext/openssl part of php-src's OpenSSL 1.1.0 support (Jakub Zelenka's openssl_1_1_port, merged for 7.1 and backported to 7.0.19 as cdc33251d2), without that commit's compatibility layer for OpenSSL < 1.1, so the branch only builds against 1.1 and later. Each converted function matches cdc33251d2 / php-7.0.33 apart from the PHP 5 zval and TSRMLS API: EVP_MD_CTX and EVP_CIPHER_CTX allocated with EVP_MD_CTX_create()/EVP_CIPHER_CTX_new() and freed on every path (openssl_sign, openssl_verify, openssl_digest, openssl_seal, openssl_open, openssl_encrypt, openssl_decrypt, phar_verify_signature), RSA/DSA/DH/EC read through EVP_PKEY_get0_*() and the *_get0_*() accessors without frees, openssl_pkey_new() building keys with RSA/DSA/DH *_set0_*() on freshly allocated BIGNUMs (OPENSSL_PKEY_SET_BN sets NULL for an absent field), X509_EXTENSION_get_data(), X509_NAME_oneline() and X509_get_signature_nid() in openssl_x509_parse(), OPENSSL_ALGO_DSS1 dropped, already-known OIDs skipped in add_oid_section(), SSLv2 removed from xp_ssl.c, and the same test updates (sni_server.phpt is XFAIL where 7.0.33 skips it on 1.1). The Windows-only win_cert_verify_callback() still reads x509_store_ctx->cert here and is converted later by #30 84d9fde, and the ext/phar/util.c hunk (identical to the 7.0 port) is under PHAR_HAVE_OPENSSL, which this build does not define (configure: 'Checking for library libeay32st.lib ... <not found>', 'Could not enable native OpenSSL support in Phar'), so phar signs and verifies through openssl_sign()/openssl_verify(). No double free, use after free, set0 on a borrowed object or uninitialised read was found, the BIGNUM leaks on the error paths of php_openssl_pkey_init_*() are those of php-src, and nothing in the commit depends on timing or heap layout, so it cannot explain the intermittent phar_setsignaturealgo2.phpt failure. Two parts of the 7.0 port are missing: the openssl_csr_get_public_key() fix and the server ECDH guard in xp_ssl.c. Defect (checked in the code): without php-src e840071 ('Never return private part of the key from openssl_csr_get_public_key'), openssl_csr_get_public_key() returns X509_REQ_get_pubkey(csr) as is; under OpenSSL 1.1 that is the EVP_PKEY cached by X509_REQ_set_pubkey(), so for a CSR made by openssl_csr_new() in the same request the returned key holds the private key, which openssl_pkey_export() writes out. e840071 duplicates the request with X509_REQ_dup() first. Remark, pre-existing in php-5.6.40 and not from this commit: phar_call_openssl_signverify() in ext/phar/util.c, the path these builds use, reads Z_BVAL_P(retval_ptr) after efree(retval_ptr), so OpenSSL signatures of phar archives are randomly accepted or rejected; this is the intermittent phar_setsignaturealgo2.phpt failure."
+  },
+  "fe87ed4f184a93f718959bd19d5f44d0f077bd20": {
+    "branch": "5.6",
+    "note": "Version bump only: main/php_version.h goes from 5.6.41-dev back to 5.6.40, the version of the base tag; with the configure.in changes of #20 44985f1 and #22 6bf1e9b the branch builds as 5.6.40. No code change."
+  },
+  "a7b15f62117df4711966162d2486aed163616caa": {
+    "branch": "5.6",
+    "note": "Windows build configuration only: adds SETUP_OPENSSL() to win32/build/confutils.js, identical to the PHP-7.2 function (OpenSSL 1.1 libcrypto/libssl tried before 1.0 ssleay32/libeay32), and gives ext/curl/config.w32 its PHP-7.1 form (SETUP_OPENSSL(), curlver.h version check, normaliz.lib and libssh2.lib for libcurl above 7.59.0) without the nghttp2.lib check. curl is no longer forced shared (EXTENSION() without true, as in 7.x); no C code changes."
+  },
+  "6d9dcae7b2828a2c4d1853eecc2e62743515b36b": {
+    "branch": "5.6",
+    "note": "Same 's' to 'p' change as official 254a591 in SplFileInfo::__construct(), on 5.6's zend_parse_parameters() with TSRMLS_CC inside the EH_THROW block: a path containing a NUL byte now fails parsing (the warning is turned into a RuntimeException) before spl_filesystem_info_set_filename(). The test keeps the 7.x TypeError expectation, which only affects the test suite."
+  },
+  "67d1a5b7d7330ceb414fd3d33ab3243fc06fa0dc": {
+    "branch": "5.6",
+    "note": "Same lines as official 5f0e62a with TSRMLS_DC/TSRMLS_CC on exif_scan_thumbnail(): the overflow-safe length check, the 8-byte minimum before exif_process_SOFn(), and width/height reset to 0 when the scan fails. pos, length and Thumbnail.size are size_t in 5.6 as in 7.1, so the comparisons behave the same."
+  },
+  "11dda9a4fb4106bb2f35a717ca0bfb379fa7d1ad": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official e0f5d62; only the context differs (5.6's phar_tar_writeheaders(void *pDest, void *argument TSRMLS_DC) instead of phar_tar_writeheaders_int()). The strlcpy() into the 100-byte header.linkname fails through the same fp->error / ZEND_HASH_APPLY_STOP path as the other checks of the 5.6 function."
+  },
+  "0c78ce21f96537dbea40c1d4f7467617600d266b": {
+    "branch": "5.6",
+    "note": "Ports official e3133e4 (umask 077 around the copy, chown() before chmod(), source unlinked only on success) with struct stat and TSRMLS_CC, but inverts both EPERM tests. The EXDEV branch is inside #ifndef PHP_WIN32, so this code is not in the Windows binaries. Defect (non-Windows builds only): official e3133e4 turns 'errno == EPERM' into 'errno != EPERM' after chown() and chmod(); the backport keeps '== EPERM', so an EPERM fails the cross-device rename (the copy stays, the source is kept) while other errors are ignored."
+  },
+  "44985f192490b2fab4a78ce065a7fe2ae1555b59": {
+    "branch": "5.6",
+    "note": "Version bump only: removes the -dev suffix from PHP_EXTRA_VERSION in configure.in, which win32/build/confutils.js reads for the version string and resources. No code change."
+  },
+  "007e043c27b160c8c7879a515aeeb792602567e9": {
+    "branch": "5.6",
+    "note": "Merge of PHP-5.6-security-backports into the openssl11 branch: the only difference from the tree git merges from the two parents is the README.md conflict, resolved with the openssl11 line ('with security fix and compatibility fix for OpenSSL 1.1'). No file that goes into the binaries."
+  },
+  "6bf1e9ba6d99406fb36b2c81599b42655eb7d4ed": {
+    "branch": "5.6",
+    "note": "Version bump only: PHP_RELEASE_VERSION back to 40 in configure.in, so the Windows build (confutils.js reads configure.in) and main/php_version.h (#2 fe87ed4) both give 5.6.40. No code change."
+  },
+  "1f2fdcd9a2471e6fac220ec2e7a2ca56b7879113": {
+    "branch": "5.6",
+    "note": "Same fix as official 887a7b5 with TSRMLS_DC/TSRMLS_CC kept: value_len passed from exif_iif_add_tag() to exif_iif_add_value(), length > value_len checks for STRING and UNDEFINED, the vptr_end bound in the numeric loop, the missing break after TAG_FMT_SINGLE, unsigned tag/format/components, and the same buffer sizes passed by every caller. In exif_process_CME() 5.6 passes 'value, length' where official has the 'value), length' typo; that function, with its case-1 call lacking TSRMLS_CC, is compiled out (#undef EXIF_JPEG2000)."
+  },
+  "a1e21e048bb5c8e9eda308a2c999027705f467d2": {
+    "branch": "5.6",
+    "note": "Fixes two typos in the fork's README.md only; the matched official 11a628d (comment typos in opcache's ZendAccelerator.c, 2020) shares only the subject and has nothing to apply to 5.6. Nothing that goes into the binaries."
+  },
+  "b4f30c26997ae59a41cbf3c1144a7769ff1dfad2": {
+    "branch": "5.6",
+    "note": "Takes the ext/openssl/config.w32 part of official df1e1fd (SETUP_OPENSSL(), HAVE_DSA_DEFAULT_METHOD only for OpenSSL 1.0); the confutils.js part is left out because SETUP_OPENSSL() is already there from #3 a7b15f6, in its later 7.2 form that tries OpenSSL 1.1 first. Build configuration only; with OpenSSL 1.1 the macro is unset, so 5.6's openssl_pkey_new() refuses DSA keys ('Unsupported private key type'), a functional limit, not a security issue."
+  },
+  "487776d0f4a4311619dbc55f56238912b81686b3": {
+    "branch": "5.6",
+    "note": "Applies the ldap and snmp hunks of official 43b92ed unchanged (SETUP_OPENSSL() instead of ssleay32/libeay32). The curl hunk is already in #3 a7b15f6, and the ftp hunk has nothing to change: 5.6's ext/ftp/config.w32 has no OpenSSL check (FTP over SSL follows HAVE_OPENSSL_EXT in ftp.h). Build configuration only."
+  },
+  "e8b84faf898df921cc25f9b382f425df277e4747": {
+    "branch": "5.6",
+    "note": "Windows build fix: php5.dll is linked by calling link.exe directly ($(LD), defined as $(LINK) in 5.6.40) with an NMAKE inline response file instead of passing the long object list to cl.exe /link, with the same objects, libraries and flags. No php-src commit makes this change; official PHP 7.0 avoided the same command-line limit with linker response files (1310bb5, 1acbcde). No effect on the code."
+  },
+  "9e0574adfd9566ed6308291e4917b095a238fa79": {
+    "branch": "5.6",
+    "note": "Identical lines to official 73ff419 (pos >= Thumbnail.size check before php_jpg_get16() in exif_scan_thumbnail()); only the TSRMLS_DC in the hunk context differs."
+  },
+  "7de8c0284cd9e237eb8a1faa9b41af1d3ef32ea9": {
+    "branch": "5.6",
+    "note": "Same check as official c34895e in php_sqlite3_authorizer(): ATTACH targets starting with 'file:' are denied when nothing follows and are checked against open_basedir without the prefix, before the existing check. 5.6's function already calls TSRMLS_FETCH() in that block, so php_check_open_basedir(... TSRMLS_CC) is correct; only the 5.6 safe_mode context differs."
+  },
+  "50c001c9cfc6c41b7762a5f64f7ba9228d22d355": {
+    "branch": "5.6",
+    "note": "Merge of PHP-5.6-security-backports into the openssl11 branch: the only difference from the tree git merges from the two parents is the conflict in ext/openssl/tests/openssl_error_string_basic.phpt, resolved with the openssl11 version of the test (OpenSSL 1.1 error strings). No file that goes into the binaries."
+  },
+  "2daaaf749613dc13efe69f132ff14ffcf56d7814": {
+    "branch": "5.6",
+    "note": "SQLite 3.28.0 upgrade of the bundled library: sqlite3.c, sqlite3.h and sqlite3ext.h end with the same blobs as official e944ae6 (440429527d60, fadfe1e15258, 088148b93660), still unchanged at the head of the branch; the diff is bigger only because 5.6 started from an older SQLite. Only NEWS differs."
+  },
+  "245e5011da14098b8158cf5c5400483399729298": {
+    "branch": "5.6",
+    "note": "Same fix as official cd1101e: error initialised to NULL and, when phar_flush() fails, the entry removed from phar_fname_map with zend_hash_del(newpath, phar->fname_len), the key and length of the zend_hash_update() just above, and *sphar set to NULL. The only 5.6 caller, phar_convert_to_other(), frees phar only when it is not NULL, so the archive destroyed by the hash destructor is not freed again."
+  },
+  "c69bcb212b37900fd61daaf38762e4974cb4dcc9": {
+    "branch": "5.6",
+    "note": "Identical lines to official ab061f9 (pilen > slen guard and path_info-dependent tflag in init_request_info()), without the test, which needs the FPM tester. FPM is not built on Windows."
+  },
+  "e6614bec92634d91d2406bf9e997675b52971769": {
+    "branch": "5.6",
+    "note": "Identical lines to official eb23c60: bc_str2num() counts only ASCII '0' to '9' instead of using isdigit(); only the TSRMLS_DC in the hunk context differs."
+  },
+  "51eb09b2b14711c1d81c075429811c5f2a885be4": {
+    "branch": "5.6",
+    "note": "Same 'ss' to 'pp' change as official 0e6c065 in the Windows link() of ext/standard/link_win32.c, on 5.6's zend_parse_parameters() with TSRMLS_CC and int lengths; symlink(), readlink() and linkinfo() in that file already parse paths."
+  },
+  "4fe7ea95d92de389bbfa46e155f7dd97b0d4d320": {
+    "branch": "5.6",
+    "note": "Same 's' to 'p' changes as official a5a1596 in spl_filesystem_object_construct() (DirectoryIterator and its subclasses), on 5.6's zend_parse_parameters() with TSRMLS_CC; int len and long flags are the 5.6 types, and a failed parse still restores the error handling and returns."
+  },
+  "7dffbc16e459f1c0379eb75a32bdf8a8666c4ca1": {
+    "branch": "5.6",
+    "note": "Same lines as official c14eb8d (7.2.26), which passes data_len - offset to exif_process_IFD_TAG() for each maker-note entry. That is safe in 7.2+, where MN_OFFSET_GUESS is compiled out (official 134047d) and data_len is always value_len, but 5.6, like 7.1, still uses MN_OFFSET_GUESS for Canon maker notes, where data_len = value_len - offset_diff can be smaller than the entry offset. Defect, a regression of the backport (checked in the code at b2b7c7d): when an entry offset (2 + 12 * de) is larger than data_len, data_len - offset wraps to nearly SIZE_MAX; once the entry lies after offset_base and the value pointer after the entry, every bound check of exif_process_IFD_TAG() passes and the value is read from offset_base + offset_val (32 bits from the file) for byte_count bytes. A crafted Canon maker note thus makes exif_read_data() copy heap memory from past the maker note into its result, or crash. php-5.6.40 passed data_len, which kept the read inside the maker note. Fix: fail the entry when offset > data_len, or compile MN_OFFSET_GUESS out as 134047d does."
+  },
+  "4b657b9918d8908f1ea32cd28fe025fad1771c6a": {
+    "branch": "5.6",
+    "note": "Merge of PHP-5.6-security-backports into the openssl11 branch: the only difference from the tree git merges from the two parents is the README.md conflict, resolved with the openssl11 line. No file that goes into the binaries."
+  },
+  "1d580a93070ddfe35bde8f7e958c0095f343356d": {
+    "branch": "5.6",
+    "note": "Test-suite cleanup only: removes the obsolete sapi/tests/test00?.phpt and moves bug69487.phpt to sapi/cgi/tests as official 1acac32 does. The run-tests.php hunks are not applied because 5.6's runner has neither a plain 'sapi' entry in $optionals nor the list of allowed sections; nothing that goes into the binaries."
+  },
+  "c24976f086448704caccfa1d1e0c59b9abb870d5": {
+    "branch": "5.6",
+    "note": "Build fix for Visual C++ 2012, whose C compiler has no inline keyword: '#define inline __inline' under PHP_WIN32 just before is_in_cp950_pua(), the static inline helper added by #109 31b5f37 (official 2bcbc95, bug #79037). No php-src counterpart, as 7.x is built with compilers that accept inline; no change in behaviour."
+  },
+  "a8b5510a30a5e8761e841c799a472c6f25560698": {
+    "branch": "5.6",
+    "note": "Same fix as official d76f7c6 in 5.6 terms: progress->data is a zval * there, so the !Z_ISUNDEF() test becomes if (progress->data), and add_assoc_bool_ex() takes sizeof(\"done\") with the NUL as 5.6 hash keys require. No SEPARATE_ARRAY() is needed since 5.6 updates progress->data in place, as the rest of the callback does."
+  },
+  "ed163ca242932e7f60467fb32ec00166f4318a40": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official e5c9523: after copying a stream into the archive, phar_build() takes the entry permissions from php_stream_stat(), with the umask fallback outside Windows. Only the 5.6 context differs (TSRMLS_DC, get_current_data(iter, &value TSRMLS_CC)), and php_stream_stat() takes TSRMLS from phar_build()."
+  },
+  "c3582855b88cfde8e69734da738803b54c2c2e26": {
+    "branch": "5.6",
+    "note": "5.6 port of official 0d139c5 (bug #79329): get_headers() parses its URL with 'p' instead of 's' (Z_PARAM_STRING to Z_PARAM_PATH upstream), so a URL containing a NUL byte is rejected instead of being truncated. 5.6's get_headers() has no context argument, hence 'p|l'.",
+    "official": "0d139c5b94a5f485a66901919e51faddb0371c43"
+  },
+  "6117c162636bfd7e981f7531dc4d48e358e62be4": {
+    "branch": "5.6",
+    "note": "ZTS fix for #131 258ad37 (official 14fcc81, bug #79330): adds the TSRMLS_CC missing from the two php_error_docref() calls that commit added to shell_exec(). Without it a thread-safe build passes E_WARNING as the tsrm_ls argument (Visual C++ only warns in C); 7.x has no TSRMLS, hence no official counterpart."
+  },
+  "a41cbed4532cc4d3d2fd1a8fa1a4ace5bdfcafc9": {
+    "branch": "5.6",
+    "note": "5.6 port of official 1c9bd51 (bug #78875, array_len no longer cast to int) and 3c8582c (bug #78876, multipart_buffer_read() and multipart_buffer_read_body() lengths no longer int), with unsigned int where php-src uses size_t, matching 5.6's unsigned int value lengths. For multipart_buffer_read() and array_len unsigned int is enough, since those values are bounded by the multipart buffer and the header line. Defect (x64, low): multipart_buffer_read_body() keeps unsigned int total_bytes and read_bytes, so erealloc(out, total_bytes + read_bytes + 1) wraps at 4 GiB and memcpy() writes past the shrunk buffer; php-5.6.40 (int) stopped at 2 GiB with a fatal error and size_t does not wrap. It takes a single 4 GiB form field, memory_limit of 4G or more (or -1) and a body that post_max_size does not stop (post_max_size 0 or over 4G, or a chunked request). Fix: size_t, as upstream."
+  },
+  "d7980cd5ef5862d9a01a0f34ee44bec07be88096": {
+    "branch": "5.6",
+    "note": "Same one-line fix as official 7355ab8: the alias is added to phar_alias_map under mydata->alias, the copy that is kept, instead of actual_alias, which has just been efree()d for persistent entries. 5.6's zend_hash_add() copies the key, and the length is the same as before."
+  },
+  "bcec8f78b57189a654524b737562d1da235c6553": {
+    "branch": "5.6",
+    "note": "ZTS fix for #140 5389b1e (official ff577b0, bug #79877): adds the TSRMLS_CC missing from the php_error_docref() call that commit added to php_getimagesize_from_any(). Without it a thread-safe build passes E_WARNING as tsrm_ls; no official counterpart since 7.x has no TSRMLS."
+  },
+  "5aff65ea80189ec2062db273d3dd335c93dc5279": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official 2d3d724 (is_userinfo_valid() in php_url_parse_ex()); only 5.6's int length parameter appears in the context, and the parse_url_unterminated test is not taken. php-src later replaced this parse_url() change with 4a89e72, which the branch also applies in #153 b837c01 and #154 7d335cd, so the final url.c has no userinfo check."
+  },
+  "b837c01d4cd290d87d2dd4c2d1195e9f209fe749": {
+    "branch": "5.6",
+    "note": "Same code as the 7.2 backport 356f700 (reviewed): moves the bug #77423 userinfo check from parse_url() to FILTER_VALIDATE_URL as official 4a89e72 does, with char * and strlen() instead of zend_string, safe as parse_url() replaces control characters, NUL included, in the user part. The url.c hunk differs only by 5.6's int length in the context and removes exactly what #149 5aff65e added."
+  },
+  "7d335cd0e3fc73f9db826067aaeececbeae2ecd1": {
+    "branch": "5.6",
+    "note": "Same patch as #153 b837c01, committed again on the other line of the branch history: same code as the 7.2 backport 356f700 (reviewed), moving the bug #77423 userinfo check from parse_url() to FILTER_VALIDATE_URL as official 4a89e72 does."
+  },
+  "d0bc0dbb20e906324e874197fa71d7b4583e59b6": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official 3c939e3: SAFE_STR() around the 12 node names printed by WSDL parsing errors and NULL node->name checks in attr_is_equal_ex() and node_is_equal_ex(); only TSRMLS_DC/TSRMLS_CC in the context differs. 5.6's php_sdl.c has no other error message that prints a node name."
+  },
+  "0373255df92545ded6df1a8b1af58ee63bae1754": {
+    "branch": "5.6",
+    "note": "Identical line to official e5d767d: SAFE_STR() casts its argument to const char * so that both branches of the conditional have the same type; only the TSRMLS_DC in the context differs."
+  },
+  "8c5f6de5fdae1e99fde57b7d2b72e9102a63cdbb": {
+    "branch": "5.6",
+    "note": "Same patch as #156 d0bc0db, committed again on the other line of the branch history: same lines as official 3c939e3 (SAFE_STR() on the WSDL error messages, NULL node->name checks in attr_is_equal_ex() and node_is_equal_ex())."
+  },
+  "4f0e59ad856a8c6f68b11858c75eb6265e0ed4db": {
+    "branch": "5.6",
+    "note": "Same patch as #157 0373255, committed again on the other line of the branch history: the const char * cast in SAFE_STR() of official e5d767d."
+  },
+  "72e14c75c5bae99a13369bf6c25c87e9c1489317": {
+    "branch": "5.6",
+    "note": "5.6 port of official 37962c6: header_injection() scans the NUL-terminated char * of each value (official reads ZSTR_VAL(), the same scan), and the 32 CHECK_HEADER_INJECTION() calls cover the same fields with the same labels and adrlist flags, using TSRMLS_CC and 5.6's zend_hash_find()/Z_STRVAL_PP. In the multipart-part loops the key is checked right after zend_hash_get_current_key(), but in the two loops of the top-level body the check was put before that call. Defect (checked in the code at b2b7c7d): in the type.parameters and disposition loops of the top-level body, CHECK_HEADER_INJECTION(key) runs before zend_hash_get_current_key(). key is declared without a value in imap_mail_compose() and not assigned before these loops, so the first pass reads an uninitialised pointer (crash or a spurious rejection), each later pass checks the previous key, and the last key is never checked: a CR or LF in the last parameter or disposition name of the top-level body still reaches the headers. Fix: move the check after zend_hash_get_current_key(), as in the multipart loops. Integer keys are not skipped, as in php-5.6.40 (official 8bee0fb skips them)."
+  },
+  "c3394c89c12277dbfd575e018a27e24447026571": {
+    "branch": "5.6",
+    "note": "Same fb_config detection as official 397bedc in ext/interbase/config.m4 and ext/pdo_firebird/config.m4; only the 5.6 context differs (InterBase wording and /usr/interbase defaults, the older error message, no -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1). config.m4 is only read by the Unix autoconf build, so the Windows binaries are unchanged."
+  },
+  "24dbc542d1ef501479dcd365f1bc53a859981dc0": {
+    "branch": "5.6",
+    "note": "Same change as official 3847a6f: firebird_fetch_blob() reallocates S->fetch_buf[colno] instead of *ptr, which PDO's fetch_value() passes as NULL, so the previous buffer (freed in firebird_stmt_dtor()) is reused instead of leaked. The only other difference is a trailing tab removed from the next blank line."
+  },
+  "b0fed22401d1237a26ec9ac951ca4c7abf512883": {
+    "branch": "5.6",
+    "note": "Same checks as official bcbf8aa in firebird_stmt_execute(): result_size must not exceed sizeof(result) (a 64-byte local array in 5.6 too) and len must be 1, 2 or 4, both bailing out to a new error: label before RECORD_ERROR(). Only the 5.6 TSRMLS_DC signature differs, and trailing whitespace is removed from the RECORD_ERROR() line."
+  },
+  "2e174eac00ecffc4dd4884e801d15d22f80ffa98": {
+    "branch": "5.6",
+    "note": "Same fix as official 67afa32: INFO_BUF_LEN (512) sizes the tmp buffer of firebird_handle_get_attribute() and firebird_info_cb() appends with strlcat() bounded by it, which 5.6 maps to php_strlcat() on Windows (no HAVE_STRLCAT). The only other difference is trailing whitespace removed after the declaration."
+  },
+  "79aadb61954cb38b7b97897482e0a3a08cd90874": {
+    "branch": "5.6",
+    "note": "Identical code change to official 3e6c02b: the statement and blob handles are initialized with PDO_FIREBIRD_HANDLE_INITIALIZER (0U on 64-bit, where Firebird handles are integers, NULL otherwise); only the 5.6 context differs (long and unsigned long instead of size_t and zend_ulong, TSRMLS_DC). It is a correctness fix, not a security fix."
+  },
+  "82b3778dcb7ad665e6fd299e0c811bb94195bf49": {
+    "branch": "5.6",
+    "note": "5.6 build fix for #167 7024ff9 (identical to official 286162e, Fix #76452): 5.6 has no ZEND_ULONG_MAX and *len is an unsigned long there, so the overflow guard compares with LONG_MAX * 2UL + 1UL, which equals ULONG_MAX on Windows (LLP64) as on LP64. The guard keeps the official meaning: *len + 1 cannot wrap to 0 before erealloc()."
+  },
+  "ac8faf81d2f142edae91c81f17530a6bf01114dd": {
+    "branch": "5.6",
+    "note": "Same check as official 2ff853a in phar_build(): fname must start with base and continue with a separator or end there, instead of merely containing it; only the 5.6 context differs (uint lengths, get_current_data() by pointer, TSRMLS). base_len cannot be 0 there, since the block runs under if (base_len) and base is then the expand_filepath() result."
+  },
+  "e3a05ecd7ac9d0353163d7c5eb702be538811d33": {
+    "branch": "5.6",
+    "note": "Same restructuring as official cb2021e: the scoreboard procs are stored inline in shared memory and the master's accesses (proc_get_from_child, proc_free, proc_alloc, scoreboard_free) are bounded by the pool's pm_max_children instead of nprocs from shared memory; the removed lines differ only by casts 5.6 lacks, and one closing fold comment is missing. PHP-FPM is a Unix-only SAPI, not built for Windows, so the binaries are unchanged."
+  },
+  "a9a1eb2383f7b95c4e6a52d40dd99651e0c1c53c": {
+    "branch": "5.6",
+    "note": "Same percent-encoded NUL check as official f15f8fc in DOMImplementation::createDocumentType(), php_libxml_streams_IO_open_wrapper() and php_libxml_output_buffer_create_filename(), with php_error_docref(NULL TSRMLS_CC, ...). The output-buffer callback has no tsrm_ls in ZTS builds; the fix-up #186 cfad01d adds it."
+  },
+  "cfad01ddc65a32fbde3110a84c61d2ac55173a9c": {
+    "branch": "5.6",
+    "note": "ZTS build fix for #183 a9a1eb2 (official f15f8fc): php_libxml_output_buffer_create_filename() is a libxml2 callback without tsrm_ls, so TSRMLS_FETCH() is added after its declarations for the new php_error_docref(NULL TSRMLS_CC, ...). It expands to nothing in NTS builds."
+  },
+  "97f8d26ba4732e7d2bc67b53c329bd70e5116639": {
+    "branch": "5.6",
+    "note": "Same change as official 55f6895 in pg_query_params() and pg_send_execute(): on a conversion error only the i parameters converted so far are freed; 5.6 keeps its zval conversion with the warning and RETURN_FALSE, like the 7.3/7.2 backports 6f979c8 and 310b17f (reviewed), and the !tmp/!tmp_str hunk is zend_string code that 5.6 lacks. pg_execute() and pg_send_query_params() keep num_params on the same error path, which has no counterpart in 7.4, but 5.6's convert_to_string() always yields IS_STRING, so that path cannot be reached."
+  },
+  "e47e59289578140103efd03fcd58ea24776a6347": {
+    "branch": "5.6",
+    "note": "Same fix as official 5800653 in php_mysqlnd_change_auth_response_write(): the command buffer is used only if it holds auth_data_len plus MYSQLND_HEADER_SIZE, otherwise total_packet_size bytes are allocated. 5.6 spells the buffer conn->net->cmd_buffer with a non-const pointer, like the 7.3/7.2 backports 9433de7 and 1560224 (reviewed)."
+  },
+  "1201102c5636961c94951b2109eddcb8c3bfd640": {
+    "branch": "5.6",
+    "note": "Same __Host-/__Secure- checks as official 0611be4 in php_register_variable_ex(), with zval_dtor(val) instead of zval_ptr_dtor_nogc(val) as on the other 5.6 discard paths of that function; the checks run before any container is allocated. They are replaced by php_is_forbidden_variable_name() in #214 db7b1be."
+  },
+  "d8a9f171c029dd4260544c46d560e67f95f99690": {
+    "branch": "5.6",
+    "note": "Same recursion limit as official 404e8bd in phar_open_from_fp(): recursion_count = 3 replaces the one-shot test flag and MAPPHAR_ALLOC_FAIL() stops a gzip or bzip2 quine; only the 5.6 context differs (int fname_len, long readsize). The official regression fix 432bf19 follows as #192, identical."
+  },
+  "d910f2d8dad3ec3351a6e583b1d157f8f286437c": {
+    "branch": "5.6",
+    "note": "Same guard as official 921b681 in sqlite_handle_quoter(): unquotedlen > (INT_MAX - 3) / 2 returns 0, so 2*unquotedlen+3 passed to sqlite3_snprintf() cannot overflow int; 5.6 already uses int lengths, and a 0 result makes PDO::quote() return false and emulated prepares fail."
+  },
+  "bc633b1095280f6a6b96b82f5241c14d25008e7f": {
+    "branch": "5.6",
+    "note": "Same salt[2] != 0 test as official a92acba in php_crypt() (PHP's own crypt_r, always used on Windows); the 5.6 bcrypt condition also tests salt[4] to salt[6], and the short-circuit now reaches each byte only after the previous ones are non-NUL."
+  },
+  "d43aca084651d395d1191a9751e2ea90036df09e": {
+    "branch": "5.6",
+    "note": "Same buffer enlargements to MAXPATHLEN + 1 as official ec10b28 in dom_document_parser(), XMLReader::XML() and php_check_specific_open_basedir(), where a slash and a NUL are appended to a path of up to MAXPATHLEN - 1 characters; only the 5.6 context differs (int lengths, TSRMLS_DC)."
+  },
+  "21a325252a52d663533715900f091b0f025a77ab": {
+    "branch": "5.6",
+    "note": "Same change as official 716de0c, cherry-picked from Remi's 7.4 backport 8ec78d2: the max_multipart_body_parts INI entry (default -1, meaning max_input_vars + max_file_uploads) and the body-part counter in rfc1867_post_handler(); only TSRMLS_CC differs, and the FPM tests are not taken. The declaration after statements is moved for VC11 by #205 0328cd4."
+  },
+  "0328cd4c3886ef3c024c50f152e1d44d92b4ca73": {
+    "branch": "5.6",
+    "note": "Jan Ehrhardt's C89 (VC11) fix for #202 21a3252 (official 716de0c): int body_parts_limit is declared at the top of rfc1867_post_handler() and assigned where it was declared before; no behaviour change."
+  },
+  "66e67c73b83b42234530b6681dc16aac5efaf0f7": {
+    "branch": "5.6",
+    "note": "Remi's 'minimal fix' for GHSA-76gg-c692-v2mw (official ac4254a, PHP 8.0.29): the cnonce is still the MD5 of php_rand() output truncated to 8 hex digits, now hashing four php_rand() values instead of one. The official fix takes 16 bytes from php_random_bytes_throw() and checks its result; that error-check half does not apply to 5.6, where php_rand() cannot fail. Remark (checked): incomplete on Windows. In thread-safe builds php_rand() is php_rand_r() from main/reentrancy.c, which keeps its state modulo PHP_RAND_MAX + 1 = 32768 (MSVC RAND_MAX), so the cnonce takes at most 32768 values; non-thread-safe builds use the CRT rand(). The predictable-cnonce part of the advisory stays open on Windows TS and partly on NTS. A complete fix would take the bytes from php_win32_get_random_bytes().",
+    "official": "ac4254ad764c70cb1f05c9270d8d12689fc3aeb6"
+  },
+  "fffb2ff3523e1d6bad1849de6cb2a781d7c4e90d": {
+    "branch": "5.6",
+    "note": "Same fix as official 8031612 with the 5.6 hash API: zend_hash_get_current_key_ex() gives a uint keylen equal to the string length (phar_add_empty() stores the dirstream keys without their NUL), and PHP_STRLCPY() is written as memcpy() plus a NUL at d_name[keylen], equivalent once keylen < sizeof(d_name) is checked. The new count check returns -1 from a size_t read op, which 5.6's _php_stream_read() and fill_read_buffer treat as an error ((size_t)-1)."
+  },
+  "f021862f7d36d994d17448fe6effdd4b14184714": {
+    "branch": "5.6",
+    "note": "Every added and removed line of official c283c3a outside ext/zend_test (absent from 5.6, as are the tests that use it) is applied, via Remi's 7.4 backport b3758bd (reviewed), in 5.6 context (PHP_FUNCTION names, warning + RETURN_FALSE on the paths that restore). In dom_load_html(), where 5.6 calls htmlCtxtUseOptions() before installing its error handlers, the commit adds the sanitize call and a second htmlCtxtUseOptions() after them; #211 06f3c8f moves the sanitize call before the original one and drops the duplicate, and #212 01da163 makes the macros C89."
+  },
+  "06f3c8f6fbb53588f41ef2f8491f74bbf3610af9": {
+    "branch": "5.6",
+    "note": "Fix-up of #209 f021862 in dom_load_html(): php_libxml_sanitize_parse_ctxt_options() moves before 5.6's own if (options) htmlCtxtUseOptions(), and the duplicate call added by #209 is removed. The context is sanitized and then receives the user options, the order of official c283c3a."
+  },
+  "01da163ff5cf550e91e7cf4ea5d2c8dfb058e792": {
+    "branch": "5.6",
+    "note": "Jan Ehrhardt's C89 (VC11) adaptation of #209 f021862: the saved libxml2 globals are declared by a new PHP_LIBXML_SANITIZE_GLOBALS_DECL() at the start of each enclosing block, and PHP_LIBXML_SANITIZE_GLOBALS() only assigns them, at the same points as before. The if (vptr) block in _dom_document_schema_validate() only opens a scope (vptr is checked just above), and in the final tree every RESTORE follows its SANITIZE on all paths, so behaviour is unchanged."
+  },
+  "488ae97660c258c4120e2e7ab6404b8361b56a41": {
+    "branch": "5.6",
+    "note": "Jan Ehrhardt's C89 (VC11) fix for #208 fffb2ff (official 8031612): the php_stream_dirent *dirent declaration moves to the top of phar_dir_read() and the pointer is assigned where it was declared before; no behaviour change."
+  },
+  "db7b1beea1805812d62ab787ebea44a918df84b9": {
+    "branch": "5.6",
+    "note": "Same change as official 093c08a, via Remi's 7.4/7.3 backports a6c1c62 and 46b570a (reviewed): the early __Host-/__Secure- checks of #190 are replaced by php_is_forbidden_variable_name() right before both insertion points of php_register_variable_ex(), with zend_bool/1/0, char *var_name and zval_dtor(val) as 5.6 types and idioms. The bypass is closed as in the official fix. Remark (checked): in the plain_var branch the gpc_element container allocated for each forbidden variable is not freed, zval_dtor(val) only frees its value: a request-scoped leak bounded by max_input_vars. Fix: zval_ptr_dtor(&gpc_element) in place of zval_dtor(val), not both, as they share the value."
+  },
+  "275555907e5c56b63ca2ae3259009e5537f970e5": {
+    "branch": "5.6",
+    "note": "Same memchr() NUL check as official 0ba5229, placed in the bcrypt case of password_hash() where 5.6 parses its options inline, like the 7.3/7.2 backports 7471009 and d22d9eb (reviewed); it raises E_WARNING and returns NULL like 5.6's other bcrypt errors instead of a ValueError, before any salt is generated."
+  },
+  "237878338b1cee3119e3f6d62c640b8cdb6d1169": {
+    "branch": "5.6",
+    "note": "5.6 never had the early return for bracketed IPv6 hosts that official 7e0e3cc removes: its php_filter_validate_url() only accepted alphanumerics, '-' and '.' in http(s) hosts, so '[' was refused and the is_userinfo_valid() checks always ran. To carry the 7.x change over, the backport imports the 7.0 host validation instead (a copy of _php_filter_validate_domain() with FILTER_FLAG_HOSTNAME fixed, plus php_filter_is_valid_ipv6_hostname() on the TSRMLS _php_filter_validate_ipv6() of 5.6), so FILTER_VALIDATE_URL now accepts http(s) URLs with a bracketed IPv6 host and rejects hostnames with an empty label, a '-' next to a dot, a label over 63 characters or more than 253 characters. The userinfo checks still run for every host, as in the fixed 7.x code. Remark: behaviour change against php-5.6.40, to state in PATCHES.md: FILTER_VALIDATE_URL now accepts http(s) URLs with a bracketed IPv6 host such as http://[::1]/ and rejects the hostnames listed above, which 5.6.40 accepted."
+  },
+  "0bd3bd616f6139dd1e076bb2e0df1a74ef298c76": {
+    "branch": "5.6",
+    "note": "The report finds no counterpart, but the cgi_main.c change and its test are identical to official 9382673 (GHSA-3qgc-jrrr-25jv, CVE-2024-4577): on Windows, a query string whose first non-space byte is >= 0x80 and best-fits to '-' in the ANSI code page (or does not convert) also skips getopt. 5.6's main() has the same QUERY_STRING check on an unsigned char *p, so the code applies as is; #221 c5daf2e then reorders its declarations for VC11 and #224 d371734 replaces the check on Windows. Test-only nit: the test uses PHP_OS_FAMILY, which 5.6 does not define, so it always skips.",
+    "official": "938267314835de3c2ed1a3da4f2959f1d2709468"
+  },
+  "c5daf2e9cc0bc6b6587b67de97b9cb188898da8e": {
+    "branch": "5.6",
+    "note": "No php-src counterpart: a VC11 (C89) build fix to the 5.6 port of official 9382673 (#220 0bd3bd6), which moves wide_buf[0] = *p and the two length assignments after the declarations. The values and the WideCharToMultiByte() check are unchanged, and #224 d371734 later removes the block on Windows."
+  },
+  "d371734993ed88e9ef42c47430ae8097c5ee03f0": {
+    "branch": "5.6",
+    "note": "Same change as official abcfd98 (GHSA-p99j-rfp4-xqvq): on Windows, skip_getopt = cgi || fastcgi replaces the best-fit check, and the other platforms keep the leading '-' test on the decoded query string. The only difference is that 5.6 keeps decoded_query_string declared at the top of main() (C89), unused on Windows; cgi and fastcgi are both set earlier in 5.6's main(), as in the official code."
+  },
+  "da023a8118592bd62fa768e83c2a7b52deaa3689": {
+    "branch": "5.6",
+    "note": "Same change as official 426a6d4 in 5.6 form: request_fulluri is read in the normal HTTP branch before the proxy setup, with the 5.6 php_stream_context_get_option()/convert_to_boolean() code moved up from the request line, and the new check rejects CR or LF in the URL when the full URI is sent. As in the 7.4 backport 494de65, the error path frees transport_string with efree(), a char* from estrndup()/spprintf() that both branches allocate before the check."
+  },
+  "bf363ad21df601575c15bec29b3c5aec9adb7362": {
+    "branch": "5.6",
+    "note": "The overflow check of official f9ecf90 in php_ldap_do_escape() uses INT_MAX, the 5.6 string length limit, as in the 7.4 backport 50e9e72, which prevents the size_t sum from wrapping on x86. The official checks for the RFC 4514 leading and trailing space escapes have nothing to guard because 5.6's ldap_escape() does not escape those spaces, and the error is a base Exception thrown with zend_throw_exception() since 5.6 has no ValueError. Test-only nit as in 7.4: the 32-bit tests expect an 'ldap_escape(): ' prefix that this exception does not carry."
+  },
+  "f7ea64028c884c1c41a25b31d5839ff2d34ced86": {
+    "branch": "5.6",
+    "note": "Same fix as official 7dd336a: php_cli_server_client_populate_request_info() now sets request_info->content_type to NULL when the request has no Content-Type header, instead of keeping the pointer of the previous request. 5.6 keeps its zend_hash_find() lookup (sizeof() with the NUL, as the headers are added with name_len + 1) and only adds the else branch."
+  },
+  "5eb674a1397f1aa3b7eb9fb9b0c7dfadc99a1495": {
+    "branch": "5.6",
+    "note": "Same fix as official db2a7f9 in both header-fault paths of SoapServer::handle(), written like the existing 5.6 cleanup after the body call: with session support built in (HAVE_PHP_SESSION && !COMPILE_DL_SESSION) the object is released only when persistance (5.6 spelling) is not SOAP_PERSISTENCE_SESSION, since the session array then owns it, and otherwise always. soap_obj is reset to NULL after release (the fail: path does not use it), and the do_soap_call() hunk only drops trailing whitespace."
+  },
+  "943de7efee24c0e7d826a3469d3b35b4ad0f4193": {
+    "branch": "5.6",
+    "note": "FPM is not built on Windows, so this does not reach the binaries. In 5.6 the full status HTML and XML output (encode) now escapes request_uri like the query string, both with the flags of official 99a5ad7, and the escaped copy is freed; the official JSON branch is left out because 5.6 does not JSON-escape any status field, the query string included."
+  },
+  "5c2cc46b45cf286666671df14edf25fc23676cd8": {
+    "branch": "5.6",
+    "note": "5.6 has no php_openssl_cipher_update(): openssl_encrypt() and openssl_decrypt() allocate their own output buffers, and the backport reserves the extra block for EVP_CIPH_WRAP_MODE in both, as the official helper does for both directions. The buffers keep the int outlen and the safe_emalloc()/emalloc() calls of 5.6."
+  },
+  "31c78f16bdc84b79c7fe3d8251e20eeff66ed1ee": {
+    "branch": "5.6",
+    "note": "5.6 port of the official 7.4 end-of-life fix 712e60f through the 7.4 backport 802c210 (same changed lines as Sury's original dce84b1): memory-limit, out-of-memory and allocation-overflow errors (zend_mm_safe_error(), the six safe_address() variants, which on this branch also guard _estrdup(), _estrndup() and zend_strndup(), _safe_emalloc_string(), Balloc()) and the 'String size overflow' errors of concat_function() and add_char/string_to_string(), which back ZEND_CONCAT, ZEND_ASSIGN_CONCAT and ZEND_ADD_* in 5.6, print to stderr and _exit(1) instead of bailing out, the file and line being found the 5.6 way. The request-state resets, the multipart header filter, the size_t substring_conf() and the disabled upload progress ('|| 1') are as in 7.4, plus SG(callback_func) = NULL; GPC arrays get nTableSize 2 because CHECK_INIT() takes nTableMask 0 for an unallocated table, and since 5.6's shutdown_executor() clears the user handlers and calls zend_objects_store_destroy() on every shutdown, 7.4's fast_shutdown branch has no counterpart, the EG(error_handling)/EG(exception) reset following the block that frees the object store. max_multipart_body_parts and its limit are already on the branch (CVE-2023-0662 backport); the message calls this a hunk of the 7.4 patch, but only the official 712e60f has it. Not carried over: 7.4's exit(1) to _exit(1) in zend_out_of_memory(), whose 5.6 counterparts are __zend_malloc() and __zend_realloc() in zend_alloc.h. Remark: zend_mm_safe_error_ex() formats sizes with %zu, which the VC11 CRT prints as 'zu' (message only, the process exits anyway). With this mitigation, exhausting memory_limit ends the process (stderr, _exit(1)): with the thread-safe Apache module, the child process and its in-flight requests.",
+    "official": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2"
+  },
+  "bd94d699a40e62563af78f7c820dd7446b38b264": {
+    "branch": "5.6",
+    "note": "Same change as official ab048bd: php_pgsql_add_quotes() now quotes with '...' instead of E'...', which is what PQescapeStringConn() and PQescapeByteaConn() escape for, given the standard_conforming_strings of the connection; its other callers quote regex-validated values. The test expectations change accordingly and a new test covers the backslash breakout."
+  },
+  "c0b92bff7449356c08d94342e6e376c75b22a398": {
+    "branch": "5.6",
+    "note": "Same fix as official 2e0fa0a in 5.6 form: phar_get_link_source() walks the link chain iteratively with Floyd's cycle detection through the new phar_follow_one_link() and returns NULL on a cycle, instead of recursing without bound. Only the TSRMLS arguments and the unchanged zend_hash_find() lookups of 5.6 differ."
+  },
+  "dae0e5c7f08a62f6f176534add83f1069192e902": {
+    "branch": "5.6",
+    "note": "All C hunks of official 2f5aa9f are there in 5.6 form, except that php_mysqlnd_rset_field_read() keeps the field default (5.6 still sends COM_FIELD_LIST for mysql_list_fields()) and only rejects a length past the packet, and that on a malformed row the decoders set the failing and remaining field zvals to NULL instead of destroying the earlier ones, because 5.6 preallocates them all with MAKE_STD_ZVAL and frees them with the result or statement. The metadata error path now calls free_result(), which also frees the results of persistent connections with the right allocator instead of mnd_efree(). The binary-row bound reads row_buffer->size, which in 5.6 is the chunk size (one byte more than the data, and not updated when resize_chunk() grows a row past 16 MB), until #291 c3279aa switches it to row_buffer->app; #324 185bbdb makes the new helpers VC11-compatible."
+  },
+  "c81786ba04c45e7b5cccf6b2d5300b1b83d16e96": {
+    "branch": "5.6",
+    "note": "Same fix as official d0d6050: each standard header (user-agent, host, from, authorization, content-length, content-type, connection) is looked for in every occurrence in the lower-cased user headers, not only the first one. The lower-cased copy is tmp in 5.6 (t in 7.x); nothing else differs."
+  },
+  "41a7477bb6cffc36895dd7e635b9b5a3443b9189": {
+    "branch": "5.6",
+    "note": "Same refactoring as official 3d9c023: the seven loops become calls to check_has_header(), identical to the official helper; only the variable name tmp (t in 7.x) differs, and the behaviour is unchanged."
+  },
+  "e41685d1fb82afcbc8554ab84db62412b59dd920": {
+    "branch": "5.6",
+    "note": "Identical to official 56cdbe6 apart from the variable name tmp: check_has_header() and the Proxy-Authorization removal now match a header name only at the start of the headers or right after a line feed."
+  },
+  "3c47c190f2777781aa8721826a8158899dc42ff2": {
+    "branch": "5.6",
+    "note": "Same fix as official cac8f7f: parse_ip_address_ex() rejects hostnames that contain NUL bytes, and fsockopen()/pfsockopen() build host:port and the persistent key with the new php_fsockopen_format_host_port(), which keeps the bytes after a NUL instead of cutting them like spprintf() with %s. 5.6 uses long and %ld for the port and, like the other errors of that function, sets the error text with spprintf() only when get_err is set."
+  },
+  "ca30bc4c35ea7ab0b4846f8929a7c57b95d4be02": {
+    "branch": "5.6",
+    "note": "All checks of official 9376aee are there in 5.6 form: pg_escape_string() and pg_escape_bytea() throw a base Exception (no ValueError in 5.6), the PDO quoter returns 0 (pdo_parse_params() frees plc->quoted only after a successful quote, so the efree() of the error path is not doubled), and the error flags start at 0, which the !HAVE_PQESCAPE_CONN fallback macro relies on. The 5.6-specific parts are right: build_tablename() frees its strtok copy on failure, php_pgsql_convert() sets the string type only after a successful escape and frees new_val when PQescapeIdentifier() fails, and php_pgsql_insert() reads the current key for its notice."
+  },
+  "e14cd43e98f67e893ecea5876ab5e88915008102": {
+    "branch": "5.6",
+    "note": "Same NUL-byte rejection as official ed70b1e, on the same parameters of inet_pton, ip2long, getservbyname, getservbyport, getprotobyname, dns_check_record, dns_get_record and dns_get_mx, in both dns.c and dns_win32.c: 5.6 switches them from 's' to 'p' in its zend_parse_parameters() calls (TSRMLS_CC, plain return on failure). The test and ip_x86_64.phpt expect 5.6's 'valid path' warnings instead of the ValueError of 8.x."
+  },
+  "fb3e7aa7118c3a405f3d5406a198254363944e99": {
+    "branch": "5.6",
+    "note": "Same one-line change as official ae04110 in php_read_APP(): an APP segment is kept only when php_stream_read() returns its whole length, so empty segments are accepted (as an empty string) and a short read no longer stores uninitialized buffer bytes in $imageinfo. Only the context differs (TSRMLS_DC signature, (long) instead of (zend_long))."
+  },
+  "f04251a86dbed2bd4ce2082fb6afe62b2f047754": {
+    "branch": "5.6",
+    "note": "Test only, as its subject says: 5.6 is not affected, because php_array_merge_or_replace_wrapper() sizes the result with the largest input array (int init_size, not a uint32_t sum of all counts) and php_array_merge() inserts through zend_hash_next_index_insert()/zend_hash_update(), which grow the table, so the count check of official 8b80115 has no 5.6 counterpart. The test expects the memory limit fatal error instead of the official Error message."
+  },
+  "2e408f2654451efb427dd0498dd903f143494e14": {
+    "branch": "5.6",
+    "note": "Same fix as 69c5f68 on 5.6's char*/int quoter API: qcount becomes size_t and the quoter returns 0 when unquotedlen + qcount + 2 would exceed INT_MAX, which takes the place of ZSTR_MAX_LEN because *quotedlen is an int in 5.6, so the quoted length can no longer wrap. At the exact limit the int expression *quotedlen + 1 given to emalloc() wraps, which yields the right size on 32-bit and an allocation failure on 64-bit, never a short buffer."
+  },
+  "5aa85925c1d1c01c2ae8a4a1b26549700f2e552e": {
+    "branch": "5.6",
+    "note": "Same fix as aee3b3a (ref_map holds a reference to every decoded value it records, released when the map is destroyed), adapted to 5.6, whose map stores zval* while decoding but raw xmlNodePtr while encoding: soap_check_xml_ref() adds the reference and sets ZVAL_PTR_DTOR as destructor when it stores a zval, instead of zend_hash_init() setting it in encode_reset_ns(). Checked that a map never holds both kinds: serialize_function_call(), serialize_response_call(), deserialize_function_call() and both parse_packet_soap() calls each run between encode_reset_ns(), which re-creates the map without destructor, and encode_finish(), and only to_zval_object_ex() stores zvals; the single-value return path that freed such a zval is fixed by e8c4d3e."
+  },
+  "d568b6b7373119e90da914b85a1f5069b844e271": {
+    "branch": "5.6",
+    "note": "Same change as official 5af9465 (rewritten strip_header(), Authorization, Cookie and Proxy-Authorization stripped on cross-origin redirects through HTTP_WRAPPER_STRIP_AUTH, empty header bag dropped), on 5.6 code: the same-origin check compares 5.6's char * scheme and host with strcasecmp() and counts a missing one as cross-origin, there is no redirect_keep_method (5.6 follows 307/308 redirects with GET), and new_path is a stack buffer, so the official efree(new_path) has no counterpart. The old resource is now freed after the comparison, or at out: when the redirect URL does not parse; the declarations after statements are fixed for VC11 by 9f7739a."
+  },
+  "b35457df76fc507bf4f1f293dbee7b00493dc90b": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official 3655b79 in php_encoding.c, php_soap.h, php_xml.c and soap.c (decode depth limit in master_to_zval_int(), iterative cleanup_xml_node() and get_node_with_attribute_recursive_ex(), XML depth check for libxml2 < 2.13); only the context differs (TSRMLS_DC signatures, TSRMLS_FETCH()). As in 8.x, the recursion that follows the XML nesting goes through master_to_zval_int() in every 5.6 decoder, and decode_depth is reset by encode_reset_ns() and encode_finish()."
+  },
+  "7ced5acacd4c3dac8c4e83899230fcd637b559b3": {
+    "branch": "5.6",
+    "note": "Same overflow fixes as official b11bd1d, kept on 5.6's int body size (get_http_body() returns an int out_size): buf_size becomes unsigned, a chunk is refused when buf_size >= INT_MAX - http_buf_size and the buffer grows through safe_erealloc(), the Connection: close loop stops before http_buf_size + 4096 + 1 would pass INT_MAX, and the relative redirect path uses safe_emalloc(). The Content-Length branch already rejects header_length >= INT_MAX in 5.6, the int form of the official ZSTR_MAX_LEN bound."
+  },
+  "95c7c5c92946402541e5d7b1470e7656a36e3f00": {
+    "branch": "5.6",
+    "note": "Same logic as 0bb308e and the 7.4/8.0 backports: matches_san_list() sets has_service_id for DNS, URI and SRV-ID otherName SANs (SRV-ID matched by its OID text), and apply_peer_verification_policy() refuses the CN fallback when it is set. Only zend_bool/0/1, TSRMLS_CC and the 5.6 function names differ, and there is no HAVE_IPV6_SAN block, which 5.6 does not have."
+  },
+  "c5e0b71fde1b66b11f8b6a69a8db95b1fb6a57f8": {
+    "branch": "5.6",
+    "note": "Same bound as official 78cc82b (suffix_len + prefix_len <= subject_len) in matches_wildcard_name(). 5.6 declared the three lengths as int; the backport makes them size_t like the official, so the memchr() length subject_len - suffix_len - prefix_len can no longer go negative."
+  },
+  "a281d1c3da7e0d347ad1833084c44c9c332f253f": {
+    "branch": "5.6",
+    "note": "The official fix is in main/fastcgi.c, which 5.6 does not have: 5.6 FPM keeps its own sapi/fpm/fpm/fastcgi.c, whose fcgi_is_allowed() gets the same change (IPv6 clients compared on the whole sin6_addr instead of 12 bytes). The CGI copy, sapi/cgi/fastcgi.c, only takes IPv4 FCGI_WEB_SERVER_ADDRS and compares whole in_addr_t values, so it has no such flaw; FPM is not built on Windows."
+  },
+  "1d03455e1ea4bae093249c5110ebb78a5acad6a1": {
+    "branch": "5.6",
+    "note": "Same changes as official 0994e2e and the 7.4 backport (strict phar_tar_size() parsing bounded to UINT32_MAX - 511, refusal of GNU long-link entries, filename_len > totalsize check, data skipped for every typeflag that carries data, new TAR_* defines), with zend_bool/0/1. In 5.6 size and entry.filename_len are php_uint32 (unsigned int) and totalsize is size_t, as the new checks expect; the two new phar_destroy_phar_data() calls lack TSRMLS_CC, which only breaks ZTS builds and is fixed by a6dd570."
+  },
+  "c3279aaeab071df9666e350bbaa3a1ba0544db72": {
+    "branch": "5.6",
+    "note": "5.6 follow-up to its GHSA-h35g-vwh6-m678 backport dae0e5c (official 2f5aa9f): the binary row decoder bounds the fields by row_buffer->app, the received data size that php_mysqlnd_rowp_read() stores and the 5.6 text decoder already uses, instead of row_buffer->size, which in 5.6's MYSQLND_MEMORY_POOL_CHUNK is the allocation (data size, bit-field prealloc and 1 byte for the trailing NUL). In 8.x MYSQLND_ROW_BUFFER.size is set to the data size, so app is the 5.6 equivalent of the official bound; with size a field could be read one byte past the received data."
+  },
+  "e8c4d3e63f4ad482b85105a18a041a06b2ef6918": {
+    "branch": "5.6",
+    "note": "5.6 follow-up to the GHSA-85c2-q967-79q5 backport 5aa8592 (official aee3b3a), needed by 5.6's zval model: for a single returned value, parse_packet_soap() moved the zval into return_value by struct copy and FREE_ZVAL(), which freed it while ref_map still held it (a use-after-free at encode_finish()). It now copies the value with ZVAL_COPY_VALUE() and zval_copy_ctor() and drops its own reference with zval_ptr_dtor(), as 8.x does with ZVAL_COPY(); return_value keeps its own refcount and is_ref."
+  },
+  "7a82a61409297adacc6edb91bdc73f1a491ddb11": {
+    "branch": "5.6",
+    "note": "No php-src commit of its own: Ondřej Surý's 5.6 port of the mysqlnd_ps_codec.c part of the GHSA-r6x9-5r99-36j7 fix 114dbb7 (minimum lengths 8, 4 and 4 for TIME, DATE and DATETIME, second_part read only from 12 and 11 bytes, DATETIME hours from 7 bytes), identical to it apart from 5.6 types and TSRMLS, plus a check of his own that the status byte and the whole null bitmap fit the row (null_bytes is (field_count + 9) / 8 computed without overflow). The bitmap check fails before the field zvals are created, which the 5.6 callers tolerate: their fields arrays are zeroed per row and mysqlnd_rset_zval_ptr_dtor() and the buffered free_result() skip NULL entries. Incomplete (checked in the code at b2b7c7d): the NEWS entry lists GHSA-r6x9-5r99-36j7 as fixed, but the rest of 114dbb7 is not on the branch. php_mysqlnd_net_field_length() and its _ll variant read 3, 4 or 9 bytes without a bound, mysqlnd_wireprotocol.c still has only the old BAIL_IF_NO_MORE_DATA, which checks after the read (the greeting reader takes the thread id, scramble and capabilities before any check), the EOF row test is still data_size > 1 (official: >= 5), and mysqlnd_stmt_prepare_read_eof() does not get the leak fix. A malicious server can still cause small heap over-reads in the client: in 5.6 the advisory is only partly fixed. The 7.2 port 06a3234 is the closest model."
+  },
+  "f10baba7086cb4e43337fdbb0bfb5c6b280dd074": {
+    "branch": "5.6",
+    "note": "No php-src counterpart: Ondřej Surý's hardening, the 5.6 form of the one reviewed on 8.1, 8.0 and 7.4 (35ba0e1, 06e44b6, 169e52d): php_mysqlnd_ok_read() bounded the OK message by the read buffer, not by the packet, so a server could have it copy bytes left in the buffer past the packet body (a NULL length marker too), and it now fails when the message goes past the body. As 5.6's php_mysqlnd_net_field_length() takes no remaining size, the size of the length prefix is checked against the rest of the body before it is decoded, so the later subtraction cannot wrap; the only side effect is that this failure path prints a wrapped byte count in its 'OK packet ... bytes shorter than expected' warning."
+  },
+  "766c0fd72ea7424fdf25d023b5c8d9d4fcd56bd3": {
+    "branch": "5.6",
+    "note": "Same check as the official fix 7050cf3 and the 7.x backports, limited to PHAR_SIG_OPENSSL: 5.6 has no OPENSSL_SHA256/SHA512 phar signature types (added in 8.1), so phar_verify_signature() refuses any other signature type when fname.pubkey exists. Every signature path of 5.6 (phar.c, tar.c, zip.c) goes through phar_verify_signature(); has_pubkey is a zend_bool and php_stream_stat_path_ex() takes TSRMLS from the function's TSRMLS_DC."
+  },
+  "1127fb4689d38b2a5bac06a4d352a1a9f8f88da9": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official 964cdcf in init_request_info() of the CGI SAPI (PATH_INFO rewritten only when it is longer than the suffix stripped from SCRIPT_FILENAME); only the context differs: TSRMLS_DC, and slen and pilen are int in 5.6. Both are non-negative there (slen counts the characters stripped from a copy of SCRIPT_FILENAME), so the signed pilen > slen test is the official guard, and path_info is not used outside the guarded block."
+  },
+  "1b3cbf165881bd1d71ddb798ad352d45e315f32a": {
+    "branch": "5.6",
+    "note": "The 7.2 backport b2fdf24 (reviewed) on 5.6 code: the same fpm_status_escape() helper for the request method, URI, query string, user and script fields of the full status, with 5.6's char * php_escape_html_entities_ex() (length out parameter, TSRMLS_CC) and an efree() of each escaped copy, which also fixes the old leak of an empty escaped string. As on 7.x, only the html and xml outputs set encode; the JSON output escapes none of its strings, as before (JSON escaping came with 8.1)."
+  },
+  "2666934c850de082a89f311ce6c3940b63a4c958": {
+    "branch": "5.6",
+    "note": "Same changes as official 28014fd: sapi_deactivate() drains unread request input even when php://input created a request_body stream, and fcgi_read_request() refuses a new request while a STDIN record is only partly read, with in_len reset in fcgi_close(). 5.6 has no main/fastcgi.c, so the FastCGI change is applied identically to its two copies, sapi/cgi/fastcgi.c (php-cgi, the FastCGI SAPI of the Windows builds) and sapi/fpm/fpm/fastcgi.c; a refused request ends in fcgi_close(req, 1, 1) as in 8.x."
+  },
+  "6a664759dd5c3754486d7057b81195ca0acb489b": {
+    "branch": "5.6",
+    "note": "Same change to php_log_err() as official f986c5c: the log time uses the local time zone only when PG(modules_activated) && EG(active), so no DATEG(tzcache) is created during module startup (whose heap shutdown_memory_manager() frees, leaving the pointer dangling) or used during request startup before the date RINIT; it replaces 5.6's ZTS-only php_during_module_startup() test. 5.6 has the same request startup order as 8.x (php_hash_environment() before zend_activate_modules()) and both globals; the official zend_test INI entry is not ported because 5.6 has no zend_test, and its test came separately (77f1823)."
+  },
+  "b23ce8cf4fb0ff020e5ffa2eebcf18c287c8625d": {
+    "branch": "5.6",
+    "note": "Same added and removed lines as official 41c0941 in PS_WRITE_FUNC(files), as in the 7.x backports: the session file is always truncated before the write, and the write fails with a warning when ftruncate() fails, instead of truncating only when the new data is shorter (the removed test is 5.6's vallen < (int)data->st_size). Only the context differs (TSRMLS_CC, '#if defined(HAVE_PWRITE)'); ftruncate() was already used there on Windows."
+  },
+  "913416b2efeeedff081667263ca011513e4ad067": {
+    "branch": "5.6",
+    "note": "The default change of the official fix 3f70f66 only (session.upload_progress.enabled off by default, rfc1867_enabled initialized in GINIT), as on 7.x and as its message says. The ban on changing session INI settings at runtime while upload progress is on is left out because the CVE-2026-109618/109619 mitigation of this branch (31c78f1) makes php_session_rfc1867_callback() return before any session update ('|| 1'), so upload progress never writes session data; checked at this commit."
+  },
+  "f6ee46a9d6083e6287379c47a2d2de7e7ec83525": {
+    "branch": "5.6",
+    "note": "Same change as official cb68a63 on 5.6's char * schemes, as in the 7.2 backport 1125e1a: use_ssl comes from a strcasecmp() of the whole scheme with 'https' and 'ftps', so mixed-case HTTPS:// and FTPS:// URLs no longer fall back to plaintext. The http wrapper still reaches this line only for an http or https scheme (case-insensitive), and every FTP operation goes through php_ftp_fopen_connect()."
+  },
+  "185bbdb095f2c1911d942bcfc5f3af56921b212e": {
+    "branch": "5.6",
+    "note": "Ours, proposed upstream (remicollet/php-src-security#47): VC11 compatibility of dae0e5c (GHSA-h35g). length_len and the 'to' pointers of ps_fetch_time(), ps_fetch_date() and ps_fetch_datetime() are declared at the start of their block, assigned where they were; the over-read checks of ps_fetch_from_1_to_8_bytes() and ps_fetch_string() move after DBG_ENTER(), which declares variables in debug builds, and leave with DBG_VOID_RETURN. Release builds behave the same; the 13 GHSA-h35g tests pass in all four variants."
+  },
+  "a6230e6e22f3f0dfa8cdcae2b4eea8b955fb76aa": {
+    "branch": "5.6",
+    "note": "Ours, proposed upstream (remicollet/php-src-security#47): VC11 compatibility of 7a82a61. null_bytes is declared with the other variables of php_mysqlnd_rowp_read_binary_protocol() and assigned where it was; no other change."
+  },
+  "3e136e0abc9c27232a835f4362bfe50ba5e5eac3": {
+    "branch": "5.6",
+    "note": "Ours, proposed upstream (remicollet/php-src-security#47): VC11 compatibility of ec0107a. remaining_size and auth_protocol are declared at the start of their block in php_mysqlnd_greet_read() and assigned where they were; no other change."
+  },
+  "9f7739ad6bfe3c588bf7c39845b052ab5e60d2c5": {
+    "branch": "5.6",
+    "note": "Ours, proposed upstream (remicollet/php-src-security#47): VC11 compatibility of d568b6b (GHSA-fpwc). The variables of the loop body of strip_header() and those of the redirect block (new_resource, default_port, same_origin, new_flags) are declared at the start of their block; same statements in the same order. The GHSA-fpwc, GHSA-hgf5 and bug79265 http tests pass in all four variants."
+  },
+  "a6dd570e2489af14c79c52d7b3058029fabf6e5b": {
+    "branch": "5.6",
+    "note": "Ours, proposed upstream (remicollet/php-src-security#47): the two error paths that 1d03455 (GHSA-j3wh) adds to phar_parse_tarfile() call phar_destroy_phar_data() without TSRMLS_CC, which broke every ZTS build; TSRMLS_CC is added, as on the other calls of the function. The three GHSA-j3wh tests pass in TS and NTS."
   }
 }

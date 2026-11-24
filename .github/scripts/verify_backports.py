@@ -19,7 +19,9 @@ A commit passes when it is identical to its official counterpart; when it differ
 has no counterpart, only in files that do not go into the binaries (NEWS, tests,
 README.md, .github); or when it adds and removes the same lines as its counterpart, in
 hunks of the same functions, so that only the surrounding context differs (the older
-branch's code around the change). Any other commit must be reviewed in
+branch's code around the change). A merge commit passes when its tree is the one git
+computes from its parents (git merge-tree), so that it brings no change of its own; the
+commits it merges are verified one by one. Any other commit must be reviewed in
 verification/reviews.json.
 Writes verification/<branch>.md and exits 1 when a commit is not reviewed.
 
@@ -27,8 +29,11 @@ Commits and trees fetched by their full id are cached in the temporary directory
 commit searches for a day, so that a rerun after a review is quick.
 
 Usage: verify_backports.py [branch ...]   (default: every branch of versions.json)
+The VERSIONS environment variable names another file than versions.json, for a branch
+that is verified before it is built (PHP 5.6).
 """
 
+import datetime
 import difflib
 import hashlib
 import json
@@ -48,6 +53,9 @@ TOKEN = os.environ.get('GITHUB_TOKEN', '')
 BASE_EXCEPTIONS = {'README.md'}
 CHERRY_PICK = re.compile(r'cherry picked from commit ([0-9a-f]{40})')
 ADVISORY = re.compile(r'GHSA(?:-[0-9a-z]{4}){3}|CVE-\d{4}-\d{4,}')
+# Above this many lines, the difference between an adapted file's two patches is replaced in the
+# report by one line when the file is the same after both commits (same blob id)
+LONG_DIFF = 1000
 # API responses kept between runs, so that a rerun after a review only fetches what may change
 CACHE = os.path.join(tempfile.gettempdir(), 'php-src-verify-cache')
 IMMUTABLE = re.compile(r'/repos/[^/]+/[^/]+/(commits|git/trees)/[0-9a-f]{40}(\?recursive=1)?$')
@@ -116,6 +124,42 @@ def official_commits():
                         f'https://github.com/{OFFICIAL}.git', path], check=True)
     out = subprocess.run(['git', '-C', path, 'rev-list', '--all'], capture_output=True, text=True, check=True)
     return set(out.stdout.split())
+
+
+def branch_clone(repo, branch, since):
+    """Clone of a branch's history since a date, commits and trees only (blobs come on demand),
+    kept in the temporary directory: what git merge-tree needs to recompute its merges."""
+    path = os.path.join(tempfile.gettempdir(), 'php-src-verify-' + repo.replace('/', '-') + '.git')
+    if os.path.isdir(path) and not os.path.isfile(os.path.join(path, 'HEAD')):
+        shutil.rmtree(path, onexc=lambda func, p, _: (os.chmod(p, 0o600), func(p)))
+    if os.path.isdir(path):
+        subprocess.run(['git', '-C', path, 'fetch', '--quiet', f'--shallow-since={since}', 'origin',
+                        f'+refs/heads/{branch}:refs/heads/{branch}'], check=True)
+    else:
+        subprocess.run(['git', 'clone', '--quiet', '--bare', '--filter=blob:none', f'--shallow-since={since}',
+                        '--single-branch', '--branch', branch, f'https://github.com/{repo}.git', path], check=True)
+    return path
+
+
+def merge_check(path, commit):
+    """('clean merge', []) when the merge commit has the tree git computes from its parents,
+    else ('merge with changes', the differences from that tree)."""
+    parents = [p['sha'] for p in commit['parents']]
+    if len(parents) != 2:
+        return 'merge with changes', [f'# {len(parents)} parents: not checked']
+    out = subprocess.run(['git', '-C', path, 'merge-tree', '--write-tree', '--no-messages', *parents],
+                         capture_output=True, text=True)
+    computed = out.stdout.split()[0] if out.stdout.strip() else None
+    actual = subprocess.run(['git', '-C', path, 'rev-parse', commit['sha'] + '^{tree}'],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    if out.returncode == 0 and computed == actual:
+        return 'clean merge', []
+    if computed is None:
+        return 'merge with changes', [f'# git merge-tree failed: {out.stderr.strip()}']
+    diff = subprocess.run(['git', '-C', path, 'diff', computed, actual], capture_output=True, text=True,
+                          encoding='utf-8', errors='replace', check=True).stdout
+    return 'merge with changes', [f'# differences from the tree git computes from the parents'
+                                  f'{" (conflicts)" if out.returncode == 1 else ""}'] + diff.splitlines()
 
 
 def official_sha(sha, official):
@@ -254,14 +298,39 @@ def verify(minor, config, reviews, official):
     base_diff = sorted(p for p in set(base_files) | set(tag_files) if base_files.get(p) != tag_files.get(p))
     base_ok = set(base_diff) <= BASE_EXCEPTIONS | set(config.get('base_exceptions', []))
 
-    comparison = request(f'/repos/{repo}/compare/{base}...{head}')
-    if comparison['status'] != 'ahead' or comparison['total_commits'] != len(comparison['commits']):
-        sys.exit(f'{minor}: {head} is not a plain descendant of {base} (or more than 250 commits)')
+    comparison = request(f'/repos/{repo}/compare/{base}...{head}?per_page=100')
+    if comparison is None or comparison['status'] != 'ahead':
+        sys.exit(f'{minor}: {head} is not a descendant of {base}')
+    commits = list(comparison['commits'])
+    while len(commits) < comparison['total_commits']:
+        more = request(f'/repos/{repo}/compare/{base}...{head}?per_page=100&page={len(commits) // 100 + 1}')
+        if not more or not more['commits']:
+            sys.exit(f'{minor}: {len(commits)} of {comparison["total_commits"]} commits listed')
+        commits += more['commits']
+    clone = None
+    if any(len(c['parents']) > 1 for c in commits):
+        # A day before the base, so that the clone holds the base, the common ancestor of the first merges
+        date = request(f'/repos/{repo}/commits/{base}')['commit']['committer']['date']
+        since = (datetime.datetime.fromisoformat(date.replace('Z', '+00:00')) - datetime.timedelta(days=1)).date().isoformat()
+        clone = branch_clone(repo, config['php_src_branch'], since)
 
     branch_index = official_branch_commits(minor, tag)
     rows, details, counts, unreviewed = [], [], {}, []
-    for number, commit in enumerate(comparison['commits'], 1):
+    for number, commit in enumerate(commits, 1):
         sha = commit['sha']
+        if len(commit['parents']) > 1:
+            result, diff = merge_check(clone, commit)
+            if diff:
+                details.append((number, sha, commit['commit']['message'].splitlines()[0], None, diff))
+            counts[result] = counts.get(result, 0) + 1
+            review = reviews.get(sha, {}).get('note', '')
+            if result != 'clean merge' and not review:
+                unreviewed.append(sha)
+            rows.append(f"| {number} | [{sha[:7]}](https://github.com/{repo}/commit/{sha}) | - "
+                        f"| {commit['commit']['message'].splitlines()[0].replace('|', chr(92) + '|')} "
+                        f"| - | {result} | {review or ('**to review**' if sha in unreviewed else '')} |")
+            print(f'{minor} {number:3}/{len(commits)} {sha[:7]} {result}', flush=True)
+            continue
         own = patch(repo, sha)
         own_id = patch_id(own)
         mine = files(own)
@@ -289,8 +358,15 @@ def verify(minor, config, reviews, official):
                 diff = [f'# {adaptation_summary(mine, theirs)}']
                 for path in differing:
                     if not outside_binaries(path):
-                        diff += difflib.unified_diff(theirs.get(path, []), mine.get(path, []),
-                                                     f'official/{path}', f'backport/{path}', n=1, lineterm='')
+                        file_diff = list(difflib.unified_diff(theirs.get(path, []), mine.get(path, []),
+                                                              f'official/{path}', f'backport/{path}', n=1, lineterm=''))
+                        # A bundled library upgraded from an older version: same file, very different patches
+                        blob = tree(repo, sha).get(path) if len(file_diff) > LONG_DIFF else None
+                        if blob and blob == tree(OFFICIAL, counterpart).get(path):
+                            diff.append(f'# {path}: {len(file_diff)} lines of difference between the two patches, '
+                                        f'not shown: the file is the same after both commits (blob {blob})')
+                        else:
+                            diff += file_diff
                 details.append((number, sha, commit['commit']['message'].splitlines()[0], counterpart, diff))
         counts[result] = counts.get(result, 0) + 1
         review = reviews.get(sha, {}).get('note', '')
@@ -303,7 +379,7 @@ def verify(minor, config, reviews, official):
                     f"| {f'[{counterpart[:7]}](https://github.com/{OFFICIAL}/commit/{counterpart})' if counterpart else '-'} "
                     f"| {commit['commit']['message'].splitlines()[0].replace('|', chr(92) + '|')} "
                     f"| {', '.join(advisories) or '-'} | {result} | {review or ('**to review**' if sha in unreviewed else '')} |")
-        print(f'{minor} {number:3}/{len(comparison["commits"])} {sha[:7]} {result}', flush=True)
+        print(f'{minor} {number:3}/{len(commits)} {sha[:7]} {result}', flush=True)
 
     summary = ', '.join(f'{n} {result}' for result, n in sorted(counts.items()))
     lines = [f'# PHP {minor}: verification of {repo}@{head[:7]}', '',
@@ -331,7 +407,7 @@ def verify(minor, config, reviews, official):
 
 
 def main():
-    with open('versions.json', encoding='utf-8') as f:
+    with open(os.environ.get('VERSIONS', 'versions.json'), encoding='utf-8') as f:
         versions = json.load(f)
     reviews_path = 'verification/reviews.json'
     reviews = json.load(open(reviews_path, encoding='utf-8')) if os.path.exists(reviews_path) else {}

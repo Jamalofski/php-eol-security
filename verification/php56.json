@@ -1,0 +1,16 @@
+{
+  "5.6": {
+    "php_src_repo": "Jamalofski/php-src-security",
+    "php_src_branch": "eol-fixes-5.6-vc11",
+    "php_src_sha": "b2b7c7dfee6c7158bf1f951e00c63b6b827fa18e",
+    "base_tag": "php-5.6.40",
+    "base_commit": "05fb10165081cb4fb55a9943b44cab62c627db7a",
+    "base_exceptions": [
+      "NEWS",
+      "configure.in",
+      "main/php_version.h"
+    ],
+    "base_version": "5.6.40",
+    "patch_level": 1
+  }
+}
