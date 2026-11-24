@@ -38,6 +38,10 @@ on:
         description: Run the same tests with the official PHP 5.6.40 binaries too, to tell build issues from test environment issues
         type: boolean
         default: false
+      build:
+        description: Build PHP (off to run only the baseline with the official binaries)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -73,6 +77,7 @@ env:
 jobs:
   trial:
     name: PHP 5.6 ${{ inputs.arch }} ${{ inputs.ts }}
+    if: inputs.build
     runs-on: windows-2022
     timeout-minutes: 180
     steps:
@@ -367,42 +372,6 @@ jobs:
           $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           $summary
 
-      - name: Baseline with the official 5.6.40
-        if: always() && inputs.baseline && inputs.tests != '' && !inputs.debug
-        timeout-minutes: 20
-        shell: pwsh
-        working-directory: php-src
-        run: |
-          # Reference only, never published: the same tests with the official binaries
-          $zip = if ('${{ inputs.ts }}' -eq 'nts') { 'php-5.6.40-nts-Win32-VC11-${{ inputs.arch }}.zip' } else { 'php-5.6.40-Win32-VC11-${{ inputs.arch }}.zip' }
-          curl.exe -sSfL --retry 3 -o official.zip "https://downloads.php.net/~windows/releases/archives/$zip"
-          if ($LASTEXITCODE) { throw "download of $zip failed" }
-          "${zip}: $((Get-FileHash official.zip -Algorithm SHA256).Hash.ToLower())"
-          Expand-Archive official.zip -DestinationPath C:\php5640
-          $out = 'C:\php5640'
-          @("extension_dir=`"$out\ext`"") + @(
-            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_curl.dll' |
-              Where-Object { Test-Path "$out\ext\$_" } | ForEach-Object { "extension=$_" }
-          ) | Set-Content "$out\php.ini"
-          $env:PATH = "$out;$env:PATH"
-          $env:PHPRC = $out
-          $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
-          $env:NO_INTERACTION = '1'
-          $env:REPORT_EXIT_STATUS = '0'
-          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q --set-timeout 60 -r tests.txt *> run-tests-official.log
-          $log = Get-Content run-tests-official.log
-          $mine = Get-Content run-tests.log | Select-String -Pattern '^(FAIL|BORK|LEAK) .*\[(.*)\]' | ForEach-Object { $_.Matches[0].Groups[2].Value }
-          $theirs = $log | Select-String -Pattern '^(FAIL|BORK|LEAK) .*\[(.*)\]' | ForEach-Object { $_.Matches[0].Groups[2].Value }
-          $summary = @('## Baseline: official PHP 5.6.40', '', '```')
-          $summary += $log | Select-String -Pattern '^(Number of tests|Tests skipped|Tests failed|Tests passed)' | ForEach-Object { $_.Line }
-          $summary += '```', '', 'Failing with this build only:', '', '```'
-          $summary += $mine | Where-Object { $theirs -notcontains $_ }
-          $summary += '```', '', 'Failing with the official build only:', '', '```'
-          $summary += $theirs | Where-Object { $mine -notcontains $_ }
-          $summary += '```'
-          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          $summary
-
       - name: Upload the build and the logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -418,9 +387,76 @@ jobs:
             ${{ runner.temp }}/zlib-build.log
             nmake.log
             php-src/run-tests.log
-            php-src/run-tests-official.log
             php-src/**/*.diff
             php-src/config.nice.bat
             php-src/Makefile
             php-src/**/Release*/*.exe
             php-src/**/Release*/*.dll
+
+  # Reference only, never published: the same tests with the official binaries, in
+  # a job of its own (no VC11 needed). The official 5.6.40 hangs on some tests of
+  # flaws it does not fix (ext/phar/tests/bug81726.phpt, CVE-2022-31628 quine
+  # gzip loop), and run-tests.php cannot stop it on Windows: choose the tests.
+  baseline:
+    name: Official PHP 5.6.40 ${{ inputs.arch }} ${{ inputs.ts }}
+    if: inputs.baseline && inputs.tests != ''
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: git config
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout php-src
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.sha }}
+          path: php-src
+
+      - name: Tests with the official 5.6.40
+        timeout-minutes: 20
+        shell: pwsh
+        working-directory: php-src
+        run: |
+          $zip = if ('${{ inputs.ts }}' -eq 'nts') { 'php-5.6.40-nts-Win32-VC11-${{ inputs.arch }}.zip' } else { 'php-5.6.40-Win32-VC11-${{ inputs.arch }}.zip' }
+          curl.exe -sSfL --retry 3 -o official.zip "https://downloads.php.net/~windows/releases/archives/$zip"
+          if ($LASTEXITCODE) { throw "download of $zip failed" }
+          "${zip}: $((Get-FileHash official.zip -Algorithm SHA256).Hash.ToLower())"
+          Expand-Archive official.zip -DestinationPath C:\php5640
+          $out = 'C:\php5640'
+          @("extension_dir=`"$out\ext`"") + @(
+            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_curl.dll' |
+              Where-Object { Test-Path "$out\ext\$_" } | ForEach-Object { "extension=$_" }
+          ) | Set-Content "$out\php.ini"
+          $env:PATH = "$out;$env:PATH"
+          $env:PHPRC = $out
+          $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
+          $env:NO_INTERACTION = '1'
+          $env:REPORT_EXIT_STATUS = '0'
+          $list = foreach ($pattern in '${{ inputs.tests }}'.Split(' ', [StringSplitOptions]::RemoveEmptyEntries)) {
+            Get-ChildItem $pattern -Recurse -Filter *.phpt | ForEach-Object { Resolve-Path -Relative $_.FullName }
+          }
+          $list | Set-Content tests.txt
+          "$(@($list).Count) tests"
+          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q --set-timeout 60 -r tests.txt *> run-tests-official.log
+          $log = Get-Content run-tests-official.log
+          $summary = @('## Baseline: official PHP 5.6.40', '', '```')
+          $summary += $log | Select-String -Pattern '^(Number of tests|Tests skipped|Tests failed|Tests passed)' | ForEach-Object { $_.Line }
+          $summary += '```', '', 'Failed tests:', '', '```'
+          $summary += $log | Select-String -Pattern '^(FAIL|BORK|LEAK)' | ForEach-Object { $_.Line } | Select-Object -First 100
+          $summary += '```'
+          $summary | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $summary
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: php56-official-${{ inputs.arch }}-${{ inputs.ts }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            php-src/run-tests-official.log
+            php-src/**/*.diff
