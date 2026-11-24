@@ -499,6 +499,12 @@ jobs:
           ) | Set-Content "$out\php.ini"
           Get-Content "$out\php.ini"
           $env:PHPRC = $out
+          # openssl_pkey_new() and openssl_csr_new() need an openssl.cnf: OPENSSL_CONF, or
+          # openssl.cnf in the default directory of OpenSSL, which the runner may or may not
+          # have. The release ships one in extras/ssl, as the official zips do.
+          foreach ($d in "$env:ProgramFiles\Common Files\SSL", "${env:ProgramFiles(x86)}\Common Files\SSL") { "openssl.cnf in ${d}: $(Test-Path "$d\openssl.cnf")" }
+          $env:OPENSSL_CONF = "$env:RUNNER_TEMP\openssl-1.1.1w\apps\openssl.cnf"
+          "OPENSSL_CONF=$env:OPENSSL_CONF ($(Test-Path $env:OPENSSL_CONF))"
           & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q --set-timeout 60 -r tests.txt *> run-tests.log
           $log = Get-Content run-tests.log
           $summary = @('## Tests', '', '```')
@@ -586,6 +592,9 @@ jobs:
           ) | Set-Content "$out\php.ini"
           $env:PATH = "$out;$env:PATH"
           $env:PHPRC = $out
+          # The openssl.cnf of the official zip, as its documentation says
+          $env:OPENSSL_CONF = "$out\extras\ssl\openssl.cnf"
+          "OPENSSL_CONF=$env:OPENSSL_CONF ($(Test-Path $env:OPENSSL_CONF))"
           $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
           $env:NO_INTERACTION = '1'
           $env:REPORT_EXIT_STATUS = '0'
