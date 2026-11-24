@@ -73,6 +73,8 @@ env:
   # curl 8.17.0 is the last release that builds with OpenSSL 1.1.1.
   CURL_URL: https://github.com/curl/curl/releases/download/curl-8_17_0/curl-8.17.0.tar.gz
   CURL_SHA256: e8e74cdeefe5fb78b3ae6e90cd542babf788fa9480029cfcee6fd9ced42b7910
+  POSTGRESQL_URL: https://ftp.postgresql.org/pub/source/v11.22/postgresql-11.22.tar.bz2
+  POSTGRESQL_SHA256: 2cb7c97d7a0d7278851bbc9c61f467b69c094c72b81740b751108e7892ebe1f0
   # zlib 1.2.7.3 of the pack (2013) has known flaws: zlib 1.4, for PHP and curl
   ZLIB_URL: https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz
   ZLIB_SHA256: 02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584
@@ -198,19 +200,20 @@ jobs:
           copy /y C:\openssl111\bin\*.dll C:\deps\bin || exit /b 1
           dir /b C:\openssl111\bin
 
-      - name: Download zlib, libssh2 and curl
+      - name: Download zlib, libssh2, curl and PostgreSQL
         shell: pwsh
         run: |
           foreach ($lib in @(
             @{ Name = 'zlib.tar.gz'; Url = $env:ZLIB_URL; Sha = $env:ZLIB_SHA256 },
             @{ Name = 'libssh2.tar.gz'; Url = $env:LIBSSH2_URL; Sha = $env:LIBSSH2_SHA256 },
-            @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 }
+            @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 },
+            @{ Name = 'postgresql.tar.bz2'; Url = $env:POSTGRESQL_URL; Sha = $env:POSTGRESQL_SHA256 }
           )) {
             curl.exe -sSfL --retry 3 -o $lib.Name $lib.Url
             if ($LASTEXITCODE) { throw "download of $($lib.Url) failed" }
             $sha = (Get-FileHash $lib.Name -Algorithm SHA256).Hash.ToLower()
             if ($sha -ne $lib.Sha) { throw "$($lib.Name): sha256 $sha, expected $($lib.Sha)" }
-            tar -xzf $lib.Name -C $env:RUNNER_TEMP
+            tar -xf $lib.Name -C $env:RUNNER_TEMP
             if ($LASTEXITCODE) { throw "extraction of $($lib.Name) failed" }
           }
 
@@ -263,6 +266,40 @@ jobs:
           lib /nologo /OUT:C:\deps\lib\libcurl_a.lib C:\curl\lib\libcurl.lib C:\zlib\lib\zlib_a.lib "%IPHLPAPI%" || exit /b 1
           rmdir /s /q C:\deps\include\curl
           xcopy /e /i /q C:\curl\include\curl C:\deps\include\curl || exit /b 1
+
+      # libpq.dll of the pack imports the OpenSSL 1.0 DLLs. PostgreSQL 12 and later
+      # need C99 (VS2013): libpq 11.22 is the last one VC11 can build, with the
+      # MSVC scripts of PostgreSQL itself, as the winlibs builds of the PHP team.
+      - name: Configure libpq
+        shell: pwsh
+        working-directory: ${{ runner.temp }}\postgresql-11.22\src\tools\msvc
+        run: |
+          @('$config->{openssl} = ''C:\openssl111'';', '1;') | Set-Content config.pl
+          Get-Content config.pl
+
+      - name: Build libpq with VC11
+        shell: cmd
+        working-directory: ${{ runner.temp }}\postgresql-11.22
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set MACHINE=X64& set PGPLAT=x64) else (set VCARCH=x86& set MACHINE=X86& set PGPLAT=Win32)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          set LINK=/MACHINE:%MACHINE%
+          set PATH=C:\Strawberry\perl\bin;%PATH%
+          where msbuild
+          cd src\tools\msvc
+          perl mkvcbuild.pl > ..\..\..\..\libpq-build.log 2>&1 || (type ..\..\..\..\libpq-build.log & exit /b 1)
+          cd ..\..\..
+          msbuild libpq.vcxproj /p:Configuration=Release /p:Platform=%PGPLAT% /v:minimal >> ..\libpq-build.log 2>&1 || (type ..\libpq-build.log & exit /b 1)
+          dir /b Release\libpq
+          rem In place of the libpq of the pack (DLL, headers in include\libpq)
+          del /q C:\deps\bin\libpq*.dll C:\deps\lib\libpq*.lib C:\deps\lib\libpq*.exp
+          if exist C:\deps\include\pgsql rmdir /s /q C:\deps\include\pgsql
+          if exist C:\deps\include\libpq rmdir /s /q C:\deps\include\libpq
+          mkdir C:\deps\include\libpq
+          copy /y Release\libpq\libpq.dll C:\deps\bin || exit /b 1
+          copy /y Release\libpq\libpq.lib C:\deps\lib || exit /b 1
+          for %%f in (src\include\pg_config.h src\include\pg_config_ext.h src\include\pg_config_os.h src\include\postgres_ext.h src\interfaces\libpq\libpq-fe.h src\interfaces\libpq\libpq-events.h src\include\libpq\libpq-fs.h) do if exist %%f copy /y %%f C:\deps\include\libpq > nul
+          dir /b C:\deps\include\libpq
 
       - name: Build
         shell: cmd
@@ -396,6 +433,7 @@ jobs:
             ${{ runner.temp }}/libssh2-build.log
             ${{ runner.temp }}/curl-build.log
             ${{ runner.temp }}/zlib-build.log
+            ${{ runner.temp }}/libpq-build.log
             nmake.log
             php-src/run-tests.log
             php-src/**/*.diff
