@@ -62,6 +62,9 @@ env:
   # OpenSSL 1.0.2q: OpenSSL 1.1.1w (last public 1.1.1 release) is built with VC11.
   OPENSSL_URL: https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz
   OPENSSL_SHA256: cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8
+  # nasm.us publishes no digest: this one was computed on the official archive
+  NASM_URL: https://www.nasm.us/pub/nasm/releasebuilds/3.02/win64/nasm-3.02-win64.zip
+  NASM_SHA256: 161d0bfaff53c2f9e9f3e69fd0672323ebabafd1268976a5cec11be92a19aee7
   # libssh2 and libcurl of the pack are tied to OpenSSL 1.0 too (curl reported
   # OpenSSL/1.0.2q): the current releases are built with VC11 against 1.1.1w.
   LIBSSH2_URL: https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz
@@ -162,6 +165,13 @@ jobs:
           if ($sha -ne $env:OPENSSL_SHA256) { throw "openssl.tar.gz: sha256 $sha, expected $env:OPENSSL_SHA256" }
           tar -xzf openssl.tar.gz -C $env:RUNNER_TEMP
           if ($LASTEXITCODE) { throw 'extraction failed' }
+          # NASM, the only assembler OpenSSL supports (AES-NI and the other fast paths)
+          curl.exe -sSfL --retry 3 -o nasm.zip $env:NASM_URL
+          $sha = (Get-FileHash nasm.zip -Algorithm SHA256).Hash.ToLower()
+          if ($sha -ne $env:NASM_SHA256) { throw "nasm.zip: sha256 $sha, expected $env:NASM_SHA256" }
+          Expand-Archive nasm.zip -DestinationPath C:\
+          Get-ChildItem C:\nasm-* -Directory | Rename-Item -NewName nasm
+          C:\nasm\nasm.exe -v
 
       - name: Build OpenSSL with VC11
         shell: cmd
@@ -172,12 +182,13 @@ jobs:
           rem The VC11 linker takes X86 from the .res files when no machine is given
           rem (LNK1112 on libssl in x64): LINK passes the option to every link.
           set LINK=/MACHINE:%MACHINE%
-          set PATH=C:\Strawberry\perl\bin;%PATH%
+          set PATH=C:\Strawberry\perl\bin;C:\nasm;%PATH%
           perl -v | findstr /c:"This is perl"
-          rem no-asm for this trial only: a release build needs NASM (AES-NI and the other assembler paths)
-          perl Configure %TARGET% no-asm no-tests --prefix=C:\openssl111 || exit /b 1
+          perl Configure %TARGET% no-tests --prefix=C:\openssl111 || exit /b 1
           nmake > ..\openssl-build.log 2>&1 || (type ..\openssl-build.log & exit /b 1)
           nmake install_sw > nul || exit /b 1
+          rem The compiler line lists the assembler paths (AESNI_ASM, ...)
+          C:\openssl111\bin\openssl.exe version -a
           rem Replace OpenSSL 1.0.2q of the pack with 1.1.1w
           rmdir /s /q C:\deps\include\openssl
           xcopy /e /i /q C:\openssl111\include\openssl C:\deps\include\openssl || exit /b 1
