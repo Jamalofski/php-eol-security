@@ -494,7 +494,7 @@ jobs:
           # -d options on, and Windows mangles the quoted extension_dir on the way.
           # Only the extensions that were built, or every test fails on a startup warning
           @("extension_dir=`"$out`"") + @(
-            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_curl.dll' |
+            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_exif.dll', 'php_imap.dll', 'php_curl.dll' |
               Where-Object { Test-Path "$out\$_" } | ForEach-Object { "extension=$_" }
           ) | Set-Content "$out\php.ini"
           Get-Content "$out\php.ini"
@@ -587,7 +587,7 @@ jobs:
           Expand-Archive official.zip -DestinationPath C:\php5640
           $out = 'C:\php5640'
           @("extension_dir=`"$out\ext`"") + @(
-            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_curl.dll' |
+            'php_openssl.dll', 'php_mysqli.dll', 'php_mbstring.dll', 'php_exif.dll', 'php_imap.dll', 'php_curl.dll' |
               Where-Object { Test-Path "$out\ext\$_" } | ForEach-Object { "extension=$_" }
           ) | Set-Content "$out\php.ini"
           $env:PATH = "$out;$env:PATH"
