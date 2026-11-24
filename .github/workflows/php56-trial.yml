@@ -437,6 +437,8 @@ jobs:
           $out = Get-ChildItem . -Recurse -Filter php.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
           if (-not $out) { throw 'php.exe not built' }
           $env:PATH = "$out;C:\deps\bin;$env:PATH"
+          # MIB files for php_snmp, as the extras/mibs folder of the official zips
+          $env:MIBDIRS = "$env:GITHUB_WORKSPACE\net-snmp\mibs"
           $summary = @("## PHP 5.6 trial (${{ inputs.arch }} ${{ inputs.ts }}, ${{ inputs.sha }})", '', '```')
           $summary += & "$out\php.exe" -n -v
           $summary += & "$out\php.exe" -n -i | Select-String -Pattern '^(Compiler|Architecture|Thread Safety|Configure Command)'
@@ -477,6 +479,8 @@ jobs:
         run: |
           $out = Get-ChildItem . -Recurse -Filter php.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
           $env:PATH = "$out;C:\deps\bin;$env:PATH"
+          # MIB files for php_snmp, as the extras/mibs folder of the official zips
+          $env:MIBDIRS = "$env:GITHUB_WORKSPACE\net-snmp\mibs"
           $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
           $env:NO_INTERACTION = '1'
           $env:REPORT_EXIT_STATUS = '0'
