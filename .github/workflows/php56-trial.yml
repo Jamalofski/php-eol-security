@@ -84,7 +84,7 @@ jobs:
     name: PHP 5.6 ${{ inputs.arch }} ${{ inputs.ts }}
     if: inputs.build
     runs-on: windows-2022
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - name: git config
         run: |
@@ -99,6 +99,7 @@ jobs:
           path: php-src
 
       - name: Download Visual Studio 2012
+        timeout-minutes: 40
         shell: pwsh
         run: |
           $dir = "$env:RUNNER_TEMP\vs2012"
@@ -108,7 +109,7 @@ jobs:
             @{ Name = 'u4.iso'; Url = $env:VS2012_U4_URL; Sha = $env:VS2012_U4_SHA256 }
           )) {
             # 2.5 GB for Update 4: retry on any error, resuming the partial file
-            curl.exe -sSfL --retry 5 --retry-all-errors --retry-delay 15 -C - -o "$dir\$($iso.Name)" $iso.Url
+            curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors --retry-delay 15 -C - -o "$dir\$($iso.Name)" $iso.Url
             if ($LASTEXITCODE) { throw "download of $($iso.Url) failed" }
             $sha = (Get-FileHash "$dir\$($iso.Name)" -Algorithm SHA256).Hash.ToLower()
             if ($sha -ne $iso.Sha) { throw "$($iso.Url): sha256 $sha, expected $($iso.Sha)" }
@@ -139,10 +140,11 @@ jobs:
           Get-ChildItem "$vc\bin" -Recurse -Filter cl.exe | ForEach-Object { "$($_.FullName) $($_.VersionInfo.FileVersion)" }
 
       - name: PHP SDK and dependencies
+        timeout-minutes: 15
         shell: pwsh
         run: |
-          curl.exe -sSfL --retry 3 -o sdk.zip $env:PHP_SDK_URL
-          curl.exe -sSfL --retry 3 -o deps.7z $env:PHP_DEPS_URL
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o sdk.zip $env:PHP_SDK_URL
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o deps.7z $env:PHP_DEPS_URL
           foreach ($f in 'sdk.zip', 'deps.7z') { "${f}: $((Get-FileHash $f -Algorithm SHA256).Hash.ToLower())" }
           Expand-Archive sdk.zip -DestinationPath C:\php-sdk
           7z x deps.7z -oC:\deps-raw | Out-Null
@@ -160,15 +162,16 @@ jobs:
           $summary
 
       - name: Download OpenSSL
+        timeout-minutes: 15
         shell: pwsh
         run: |
-          curl.exe -sSfL --retry 3 -o openssl.tar.gz $env:OPENSSL_URL
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o openssl.tar.gz $env:OPENSSL_URL
           $sha = (Get-FileHash openssl.tar.gz -Algorithm SHA256).Hash.ToLower()
           if ($sha -ne $env:OPENSSL_SHA256) { throw "openssl.tar.gz: sha256 $sha, expected $env:OPENSSL_SHA256" }
           tar -xzf openssl.tar.gz -C $env:RUNNER_TEMP
           if ($LASTEXITCODE) { throw 'extraction failed' }
           # NASM, the only assembler OpenSSL supports (AES-NI and the other fast paths)
-          curl.exe -sSfL --retry 3 -o nasm.zip $env:NASM_URL
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o nasm.zip $env:NASM_URL
           $sha = (Get-FileHash nasm.zip -Algorithm SHA256).Hash.ToLower()
           if ($sha -ne $env:NASM_SHA256) { throw "nasm.zip: sha256 $sha, expected $env:NASM_SHA256" }
           Expand-Archive nasm.zip -DestinationPath C:\
@@ -201,6 +204,7 @@ jobs:
           dir /b C:\openssl111\bin
 
       - name: Download zlib, libssh2, curl and PostgreSQL
+        timeout-minutes: 15
         shell: pwsh
         run: |
           foreach ($lib in @(
@@ -209,7 +213,7 @@ jobs:
             @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 },
             @{ Name = 'postgresql.tar.bz2'; Url = $env:POSTGRESQL_URL; Sha = $env:POSTGRESQL_SHA256 }
           )) {
-            curl.exe -sSfL --retry 3 -o $lib.Name $lib.Url
+            curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o $lib.Name $lib.Url
             if ($LASTEXITCODE) { throw "download of $($lib.Url) failed" }
             $sha = (Get-FileHash $lib.Name -Algorithm SHA256).Hash.ToLower()
             if ($sha -ne $lib.Sha) { throw "$($lib.Name): sha256 $sha, expected $($lib.Sha)" }
@@ -470,7 +474,7 @@ jobs:
         shell: pwsh
         run: |
           $sha = if ('${{ inputs.arch }}' -eq 'x64') { '681be3e5ba9fd3da02c09d7e565adfa078640ed66a0d58583efad2c1e3cc4064' } else { 'b924ad8062eaf4e70437c8be50fa612162795ff0839479546ce907ffa8d6e386' }
-          curl.exe -sSfL --retry 3 -o vcredist.exe "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_${{ inputs.arch }}.exe"
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o vcredist.exe "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_${{ inputs.arch }}.exe"
           if ($LASTEXITCODE) { throw 'download of the redistributable failed' }
           $got = (Get-FileHash vcredist.exe -Algorithm SHA256).Hash.ToLower()
           if ($got -ne $sha) { throw "vcredist: sha256 $got, expected $sha" }
@@ -484,7 +488,7 @@ jobs:
         working-directory: php-src
         run: |
           $zip = if ('${{ inputs.ts }}' -eq 'nts') { 'php-5.6.40-nts-Win32-VC11-${{ inputs.arch }}.zip' } else { 'php-5.6.40-Win32-VC11-${{ inputs.arch }}.zip' }
-          curl.exe -sSfL --retry 3 -o official.zip "https://downloads.php.net/~windows/releases/archives/$zip"
+          curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o official.zip "https://downloads.php.net/~windows/releases/archives/$zip"
           if ($LASTEXITCODE) { throw "download of $zip failed" }
           "${zip}: $((Get-FileHash official.zip -Algorithm SHA256).Hash.ToLower())"
           Expand-Archive official.zip -DestinationPath C:\php5640
