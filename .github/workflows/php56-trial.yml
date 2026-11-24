@@ -307,6 +307,85 @@ jobs:
           for %%f in (src\include\pg_config.h src\include\pg_config_ext.h src\include\pg_config_os.h src\include\postgres_ext.h src\interfaces\libpq\libpq-fe.h src\interfaces\libpq\libpq-events.h src\include\libpq\libpq-fs.h) do if exist %%f copy /y %%f C:\deps\include\libpq > nul
           dir /b C:\deps\include\libpq
 
+      # PG_VERSION_STR of libpq 11 uses CppAsString2(), defined in c.h, which PHP 5.6
+      # does not include (older libpq wrote a literal): defined in the copy for PHP.
+      - name: Adjust the libpq headers for PHP 5.6
+        shell: pwsh
+        run: |
+          $f = 'C:\deps\include\libpq\pg_config.h'
+          $prefix = @(
+            '/* php-eol-security: PG_VERSION_STR uses CppAsString2(), defined in c.h, which PHP 5.6 does not include */',
+            '#ifndef CppAsString2',
+            '#define CppAsString(identifier) #identifier',
+            '#define CppAsString2(x) CppAsString(x)',
+            '#endif',
+            ''
+          )
+          Set-Content $f ($prefix + (Get-Content $f))
+          Select-String -Path $f -Pattern 'PG_VERSION_STR|CppAsString2' | ForEach-Object { $_.Line }
+
+      # oldap32_a.lib and olber32_a.lib of the pack are built against OpenSSL 1.0:
+      # OpenLDAP 2.4.47 (OpenSSL 1.1 support) from winlibs, with its VC11 projects,
+      # the ones the PHP team built its 5.6 dependencies with.
+      - name: Checkout OpenLDAP (winlibs)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: winlibs/openldap
+          ref: b2ffd90b9a7fdfd0dd1d66f1581190a311f14ab2 # openldap-2.4.47-1
+          path: openldap
+
+      - name: Build OpenLDAP with VC11
+        continue-on-error: true
+        shell: cmd
+        working-directory: openldap
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set MACHINE=X64& set PLAT=x64) else (set VCARCH=x86& set MACHINE=X86& set PLAT=Win32)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          git apply --reverse --check openldap.patch 2>nul && (echo openldap.patch already applied) || (git apply openldap.patch || exit /b 1)
+          rem OpenSSL 1.1.1w and the SASL headers of the pack, through INCLUDE (UseEnv)
+          set INCLUDE=C:\openssl111\include;C:\deps\include;%INCLUDE%
+          for %%p in (liblber libldap) do (msbuild win32\vc11\%%p.vcxproj /p:Configuration=Release /p:Platform=%PLAT% /p:UseEnv=true /v:minimal >> ..\openldap-build.log 2>&1 || (type ..\openldap-build.log & exit /b 1))
+          for /r %%f in (oldap32_a.lib olber32_a.lib) do if exist "%%f" echo %%f
+          set OLDAP=
+          set OLBER=
+          for /r %%f in (oldap32_a.lib) do if exist "%%f" set OLDAP=%%f
+          for /r %%f in (olber32_a.lib) do if exist "%%f" set OLBER=%%f
+          if not defined OLDAP (echo oldap32_a.lib not built & exit /b 1)
+          if not defined OLBER (echo olber32_a.lib not built & exit /b 1)
+          rem In place of those of the pack
+          copy /y "%OLDAP%" C:\deps\lib\oldap32_a.lib || exit /b 1
+          copy /y "%OLBER%" C:\deps\lib\olber32_a.lib || exit /b 1
+          for %%h in (ldap.h lber.h lber_types.h ldap_cdefs.h ldap_features.h ldap_schema.h ldap_utf8.h) do copy /y include\%%h C:\deps\include\openldap > nul || exit /b 1
+
+      # netsnmp.lib of the pack is built against OpenSSL 1.0: net-snmp 5.7.3 from
+      # winlibs (patched for OpenSSL 1.1, as for the PHP 7.4 builds), with its own
+      # win32 scripts, as the winlibs recipe of the PHP team.
+      - name: Checkout net-snmp (winlibs)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: winlibs/net-snmp
+          ref: 106c51bea5ae2efeb6e6659a5ebc610ffe0e3e89 # net-snmp-5.7.3-6
+          path: net-snmp
+
+      - name: Build net-snmp with VC11
+        continue-on-error: true
+        shell: cmd
+        working-directory: net-snmp\win32
+        run: |
+          if "${{ inputs.arch }}"=="x64" (set VCARCH=x86_amd64& set MACHINE=X64) else (set VCARCH=x86& set MACHINE=X86)
+          call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat" %VCARCH% || exit /b 1
+          set LINK=/MACHINE:%MACHINE%
+          set PATH=C:\Strawberry\perl\bin;%PATH%
+          set INCLUDE=C:\openssl111\include;%INCLUDE%
+          perl Configure --with-sdk --with-ssl --config=release --with-ipv6 --linktype=static --prefix=c:/usr > ..\..\netsnmp-build.log 2>&1 || (type ..\..\netsnmp-build.log & exit /b 1)
+          nmake libsnmp >> ..\..\netsnmp-build.log 2>&1 || (powershell -Command "Get-Content ..\..\netsnmp-build.log -Tail 60" & exit /b 1)
+          if not exist lib\release\netsnmp.lib (echo netsnmp.lib not built & exit /b 1)
+          rem In place of that of the pack
+          copy /y lib\release\netsnmp.lib C:\deps\lib || exit /b 1
+          if exist C:\deps\include\net-snmp rmdir /s /q C:\deps\include\net-snmp
+          xcopy /e /i /q ..\include\net-snmp C:\deps\include\net-snmp || exit /b 1
+          xcopy /e /y /q net-snmp\*.h C:\deps\include\net-snmp\ || exit /b 1
+
       - name: Build
         shell: cmd
         working-directory: php-src
@@ -441,6 +520,8 @@ jobs:
             ${{ runner.temp }}/zlib-build.log
             ${{ runner.temp }}/libpq-build.log
             nmake.log
+            openldap-build.log
+            netsnmp-build.log
             php-src/run-tests.log
             php-src/**/*.diff
             php-src/config.nice.bat
