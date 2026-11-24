@@ -333,6 +333,7 @@ jobs:
 
       - name: Tests
         if: always() && inputs.tests != '' && !inputs.debug
+        timeout-minutes: 20
         shell: pwsh
         working-directory: php-src
         run: |
@@ -356,7 +357,7 @@ jobs:
           ) | Set-Content "$out\php.ini"
           Get-Content "$out\php.ini"
           $env:PHPRC = $out
-          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q -r tests.txt *> run-tests.log
+          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q --set-timeout 60 -r tests.txt *> run-tests.log
           $log = Get-Content run-tests.log
           $summary = @('## Tests', '', '```')
           $summary += $log | Select-String -Pattern '^(Number of tests|Tests skipped|Tests warned|Tests failed|Expected fail|Tests passed)' | ForEach-Object { $_.Line }
@@ -368,6 +369,7 @@ jobs:
 
       - name: Baseline with the official 5.6.40
         if: always() && inputs.baseline && inputs.tests != '' && !inputs.debug
+        timeout-minutes: 20
         shell: pwsh
         working-directory: php-src
         run: |
@@ -387,7 +389,7 @@ jobs:
           $env:TEST_PHP_EXECUTABLE = "$out\php.exe"
           $env:NO_INTERACTION = '1'
           $env:REPORT_EXIT_STATUS = '0'
-          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q -r tests.txt *> run-tests-official.log
+          & "$out\php.exe" -n run-tests.php -p "$out\php.exe" -q --set-timeout 60 -r tests.txt *> run-tests-official.log
           $log = Get-Content run-tests-official.log
           $mine = Get-Content run-tests.log | Select-String -Pattern '^(FAIL|BORK|LEAK) .*\[(.*)\]' | ForEach-Object { $_.Matches[0].Groups[2].Value }
           $theirs = $log | Select-String -Pattern '^(FAIL|BORK|LEAK) .*\[(.*)\]' | ForEach-Object { $_.Matches[0].Groups[2].Value }
