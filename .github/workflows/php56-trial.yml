@@ -73,8 +73,8 @@ env:
   # curl 8.17.0 is the last release that builds with OpenSSL 1.1.1.
   CURL_URL: https://github.com/curl/curl/releases/download/curl-8_17_0/curl-8.17.0.tar.gz
   CURL_SHA256: e8e74cdeefe5fb78b3ae6e90cd542babf788fa9480029cfcee6fd9ced42b7910
-  POSTGRESQL_URL: https://ftp.postgresql.org/pub/source/v11.22/postgresql-11.22.tar.bz2
-  POSTGRESQL_SHA256: 2cb7c97d7a0d7278851bbc9c61f467b69c094c72b81740b751108e7892ebe1f0
+  POSTGRESQL_URL: https://ftp.postgresql.org/pub/source/v11.22/postgresql-11.22.tar.gz
+  POSTGRESQL_SHA256: 6445a4e1533c1e8bb616d4a3784bdc4c0226b541f6f0c8d996d9f27d581d49c3
   # zlib 1.2.7.3 of the pack (2013) has known flaws: zlib 1.4, for PHP and curl
   ZLIB_URL: https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz
   ZLIB_SHA256: 02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584
@@ -211,13 +211,15 @@ jobs:
             @{ Name = 'zlib.tar.gz'; Url = $env:ZLIB_URL; Sha = $env:ZLIB_SHA256 },
             @{ Name = 'libssh2.tar.gz'; Url = $env:LIBSSH2_URL; Sha = $env:LIBSSH2_SHA256 },
             @{ Name = 'curl.tar.gz'; Url = $env:CURL_URL; Sha = $env:CURL_SHA256 },
-            @{ Name = 'postgresql.tar.bz2'; Url = $env:POSTGRESQL_URL; Sha = $env:POSTGRESQL_SHA256 }
+            @{ Name = 'postgresql.tar.gz'; Url = $env:POSTGRESQL_URL; Sha = $env:POSTGRESQL_SHA256 }
           )) {
+            "$(Get-Date -Format HH:mm:ss) downloading $($lib.Url)"
             curl.exe -sSfL --connect-timeout 30 --speed-limit 1024 --speed-time 60 --retry 5 --retry-all-errors -o $lib.Name $lib.Url
             if ($LASTEXITCODE) { throw "download of $($lib.Url) failed" }
             $sha = (Get-FileHash $lib.Name -Algorithm SHA256).Hash.ToLower()
             if ($sha -ne $lib.Sha) { throw "$($lib.Name): sha256 $sha, expected $($lib.Sha)" }
-            tar -xf $lib.Name -C $env:RUNNER_TEMP
+            "$(Get-Date -Format HH:mm:ss) extracting $($lib.Name) ($((Get-Item $lib.Name).Length) bytes)"
+            tar -xzf $lib.Name -C $env:RUNNER_TEMP
             if ($LASTEXITCODE) { throw "extraction of $($lib.Name) failed" }
           }
 
